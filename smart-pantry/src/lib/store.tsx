@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { supabaseBrowser } from "./supabase/client";
 import type { Cooking, InventoryEvent, InventoryItem, PreferenceOverride, Profile, Rating, Recipe, ShoppingItem } from "./domain/types";
 
-interface Household { id: string; name: string; currency: string; expiry_alert_days: number }
+interface Household { id: string; name: string; currency: string; expiry_alert_days: number; stores: string[] }
 
 interface State {
   ready: boolean;

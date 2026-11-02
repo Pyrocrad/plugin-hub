@@ -7,6 +7,7 @@ import { shoppingFromMatches } from "@/lib/domain/shopping";
 import { formatQuantity } from "@/lib/domain/units";
 import { householdAgreement } from "@/lib/domain/preferences";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { preferredStore } from "@/lib/domain/stores";
 import { CookSheet, RateForm } from "@/components/CookSheet";
 import { RecipeImage, Sheet, Stars, Empty, timeAgo } from "@/components/ui";
 
@@ -20,7 +21,7 @@ const AGREE: Record<string, string> = { all_love: "💚 You all love this", spli
 
 export default function RecipeDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { recipes, inventory, cookings, ratings, members, user, household, rpc, reload, toast, memberName, upsertLocal } = useHousehold();
+  const { recipes, inventory, cookings, ratings, members, user, household, rpc, reload, toast, memberName, upsertLocal, shopping } = useHousehold();
   const recipe = recipes.find((r) => r.id === id);
   const [cooking, setCooking] = useState(false);
   const [rateFor, setRateFor] = useState<string | null>(null);
@@ -36,7 +37,7 @@ export default function RecipeDetail({ params }: { params: Promise<{ id: string 
   async function addMissing() {
     let n = 0;
     for (const d of toBuy) {
-      const r = await rpc("add_shopping_item", { p_household: household!.id, p_name: d.name, p_normalized: d.normalized_name, p_quantity: d.quantity, p_unit: d.unit, p_category: d.category, p_recipe: recipe!.id });
+      const r = await rpc("add_shopping_item", { p_household: household!.id, p_name: d.name, p_normalized: d.normalized_name, p_quantity: d.quantity, p_unit: d.unit, p_category: d.category, p_recipe: recipe!.id, p_store: preferredStore(d.name, inventory, shopping) });
       if (r) n++;
     }
     await reload();

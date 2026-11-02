@@ -77,3 +77,24 @@ export function timeAgo(iso: string) {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 }
+
+/** Chip row to pick one of the household's stores (or none). */
+export function StorePicker({ stores, value, onChange, label = "Store" }: { stores: string[]; value: string | null; onChange: (s: string | null) => void; label?: string }) {
+  if (!stores.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-stone-500">{label}</span>
+      {stores.map((s) => (
+        <button key={s} type="button" onClick={() => onChange(value === s ? null : s)}
+          className={`chip py-1 ${value === s ? "bg-stone-900 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200"}`}>🏪 {s}</button>
+      ))}
+    </div>
+  );
+}
+
+export function StoreChip({ store, stores }: { store: string | null; stores: string[] }) {
+  if (!store) return null;
+  const COLORS = ["bg-sky-100 text-sky-800", "bg-amber-100 text-amber-800", "bg-fuchsia-100 text-fuchsia-800"];
+  const i = stores.indexOf(store);
+  return <span className={`chip ${i < 0 ? "bg-stone-100 text-stone-600" : COLORS[i % COLORS.length]}`}>{store}</span>;
+}

@@ -5,7 +5,7 @@ import type { InventoryItem, Location } from "@/lib/domain/types";
 import { LOCATIONS } from "@/lib/domain/types";
 import { addDays, daysLeft, effectiveExpiry, expiryAdvice, FREEZER_DAYS } from "@/lib/domain/expiry";
 import { formatQuantity, quickSteps } from "@/lib/domain/units";
-import { ExpiryBadge, Sheet, timeAgo } from "./ui";
+import { ExpiryBadge, Sheet, StorePicker, timeAgo } from "./ui";
 
 export function useInventoryActions() {
   const { rpc, upsertLocal, toast } = useHousehold();
@@ -59,6 +59,7 @@ export function ItemSheet({ item, onClose }: { item: InventoryItem | null; onClo
 function ItemSheetBody({ item, onClose, history, memberName }: { item: InventoryItem; onClose: () => void; history: ReturnType<typeof useHousehold>["events"]; memberName: (id: string | null) => string }) {
   const a = useInventoryActions();
   const { sbUpdate } = useUpdate();
+  const { household } = useHousehold();
   const [amount, setAmount] = useState("");
   const [qty, setQty] = useState(String(item.quantity));
   const d = daysLeft(item, today());
@@ -145,6 +146,9 @@ function ItemSheetBody({ item, onClose, history, memberName }: { item: Inventory
         <div className="col-span-2">
           <label className="label">Low-stock alert at</label>
           <input className="input" inputMode="decimal" placeholder={`e.g. 1 ${item.unit}`} defaultValue={item.low_stock_threshold ?? ""} onBlur={(e) => sbUpdate(item, { low_stock_threshold: e.target.value ? Number(e.target.value) : null })} />
+        </div>
+        <div className="col-span-2">
+          <StorePicker stores={household?.stores ?? []} value={item.store} onChange={(st) => sbUpdate(item, { store: st })} label="Bought at" />
         </div>
         <div className="col-span-2">
           <label className="label">Notes</label>

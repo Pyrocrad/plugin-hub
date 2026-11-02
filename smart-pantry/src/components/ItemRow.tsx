@@ -2,13 +2,13 @@
 import type { InventoryItem } from "@/lib/domain/types";
 import { formatQuantity, quickSteps } from "@/lib/domain/units";
 import { useHousehold } from "@/lib/store";
-import { Avatar, ExpiryBadge } from "./ui";
+import { Avatar, ExpiryBadge, StoreChip } from "./ui";
 import { useInventoryActions } from "./ItemSheet";
 
 /** One-tap consumption right on the row – the thing that keeps the inventory honest. */
 export function ItemRow({ item, onOpen }: { item: InventoryItem; onOpen: () => void }) {
   const a = useInventoryActions();
-  const { members } = useHousehold();
+  const { members, household } = useHousehold();
   const who = members.find((m) => m.id === item.updated_by);
   const steps = quickSteps(item.quantity, item.unit).slice(0, 2);
   const low = item.low_stock_threshold != null && item.quantity <= item.low_stock_threshold;
@@ -24,6 +24,7 @@ export function ItemRow({ item, onOpen }: { item: InventoryItem; onOpen: () => v
         <div className="mt-0.5 flex items-center gap-1.5 text-xs text-stone-500">
           <span className="font-medium text-stone-700">{formatQuantity(item.quantity, item.unit)}</span>
           <span>· {item.category}</span>
+          {item.store && <span className="ml-1"><StoreChip store={item.store} stores={household?.stores ?? []} /></span>}
           {who && <span className="ml-1 inline-flex items-center gap-1"><Avatar name={who.display_name} color={who.avatar_color} /></span>}
         </div>
       </button>

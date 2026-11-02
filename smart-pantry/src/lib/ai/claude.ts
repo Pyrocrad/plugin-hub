@@ -65,7 +65,8 @@ export async function suggestRecipes(context: unknown, request: string, opts: { 
 
 const SCAN_PROMPTS = {
   photo: "Identify every distinct grocery product visible in this photo. Estimate quantity and unit from packaging when readable; otherwise count pieces. Choose a sensible storage location.",
-  receipt: "This is a supermarket receipt. Extract every FOOD product purchased (skip bags, deposits, discounts, non-food). Expand abbreviations to clear generic product names. Use quantities/weights printed on the receipt; default to 1 pcs if unknown. Include price per line if visible.",
+  list: "This is a photo of a grocery/shopping list (handwritten, printed, or a phone screenshot) of products the household has just bought. Read every line, including messy handwriting. Each line is one product; parse quantities like '2x', '500g', '1 l', '6 eggs'. Use clear generic product names, keep the language of the list. Ignore crossed-out lines and non-food items. If a line is illegible, give your best guess with confidence low. Default to 1 pcs if no quantity.",
+  receipt: "This is a supermarket receipt. Put the shop name in store_name. Extract every FOOD product purchased (skip bags, deposits, discounts, non-food). Expand abbreviations to clear generic product names. Use quantities/weights printed on the receipt; default to 1 pcs if unknown. Include price per line if visible.",
 } as const;
 
 export async function scanImage(base64: string, mediaType: "image/jpeg" | "image/png" | "image/webp", mode: keyof typeof SCAN_PROMPTS) {
@@ -88,7 +89,7 @@ export async function scanImage(base64: string, mediaType: "image/jpeg" | "image
   if (!block || block.type !== "tool_use") throw new Error("No products detected");
   const parsed = ScanResult.safeParse(block.input);
   if (!parsed.success) throw new Error("Could not read the scan result");
-  return parsed.data.items;
+  return { items: parsed.data.items, store: parsed.data.store_name ?? null };
 }
 
 /** Optional dish photo via Unsplash (server-side key). Falls back to null → UI placeholder. */

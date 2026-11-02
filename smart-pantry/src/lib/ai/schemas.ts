@@ -42,7 +42,7 @@ export const ScannedItem = z.object({
   confidence: z.enum(["high", "medium", "low"]),
   price: z.number().nullable().optional(),
 });
-export const ScanResult = z.object({ items: z.array(ScannedItem).max(80) });
+export const ScanResult = z.object({ items: z.array(ScannedItem).max(80), store_name: z.string().nullable().optional() });
 export type ScannedItem = z.infer<typeof ScannedItem>;
 
 /** JSON schema handed to Claude as a tool input schema (mirrors AiRecipe). */
@@ -103,6 +103,7 @@ export const scanToolSchema = {
   type: "object",
   required: ["items"],
   properties: {
+    store_name: { type: ["string", "null"], description: "Shop name if printed (receipts), else null" },
     items: {
       type: "array",
       items: {

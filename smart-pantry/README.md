@@ -111,6 +111,22 @@ The shopping list has a **"Suggested for you"** card (also shown on the dashboar
 * **Items below a low-stock alert level** you set on the product.
 Anything already on the open shopping list is skipped. Amounts are rounded to shop-friendly sizes.
 
+## Stores
+Add the shops you use in **Settings → Our stores** (e.g. two supermarkets). After that:
+* Every product and shopping item can be tagged with a store. The app remembers where you last bought each product
+  and uses that as the default next time (`src/lib/domain/stores.ts`).
+* The shopping list has a tab per store, so in the shop you only see what you need there. Tap an item's store tag
+  to move it to the other shop. Suggestions show your usual store.
+* "Bought → into inventory" records the store. Receipt scans detect the shop name automatically.
+* Database: `supabase/migrations/0002_stores.sql` (run it after `0001`).
+
+## Grocery-list photos
+**Add → Photo / list → Grocery list** reads a photo of a handwritten or printed list, or a screenshot from a notes or
+chat app, and turns each line into a product. You can pick several photos at once. Everything appears in the review
+list (unsure lines are highlighted), you pick the store once, and then it's added to the stock.
+On Android, you can also **share** photos from the gallery or WhatsApp to *Smart Pantry* (installed as an app from Chrome).
+The add screen opens with the photos ready.
+
 ## Android app
 * **Native APK (Capacitor):** `android/` is a native Android project that opens your deployed app full-screen,
   with camera and microphone permissions, a splash screen and a green status bar. The server is still needed so the Claude key stays secret.
@@ -121,6 +137,8 @@ Anything already on the open shopping list is skipped. Amounts are rounded to sh
   The GitHub workflow `.github/workflows/smart-pantry-android.yml` builds a debug APK as a downloadable artifact
   (run it manually and enter the URL, or set the repo variable `SMART_PANTRY_URL`).
 * **Or install as a PWA:** open the site in Chrome on Android and choose ⋮ → *Install app*. There's a manifest, icons and an offline page.
+* Sharing photos *to* the app uses the PWA share target, so it works when installed from Chrome. The Capacitor
+  APK does not register as a share target yet.
 * Voice dictation uses the Web Speech API, which Chrome supports but the in-app WebView does not. In the APK, use the
   keyboard's microphone button instead. Photo and receipt scans and the barcode camera work in both.
 

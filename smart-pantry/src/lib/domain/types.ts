@@ -18,6 +18,7 @@ export interface InventoryItem {
   low_stock_threshold: number | null;
   barcode: string | null;
   notes: string | null;
+  store: string | null;
   status: ItemStatus;
   version: number;
   created_by: string | null;
@@ -100,6 +101,7 @@ export interface ShoppingItem {
   unit: string | null;
   notes: string | null;
   recipe_id: string | null;
+  store: string | null;
   status: "open" | "purchased";
   added_by: string | null;
   purchased_by: string | null;

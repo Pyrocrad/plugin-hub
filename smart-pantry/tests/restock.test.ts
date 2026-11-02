@@ -26,7 +26,7 @@ describe("restock suggestions", () => {
     expect(restockSuggestions({ inventory: [rice], events, cookings: [], recipes: [], shopping: [], today })).toHaveLength(0);
     const eggs = item({ name: "Eggs", quantity: 0, unit: "pcs", status: "consumed" });
     const ev2 = [ev(eggs.id, -6, "pcs", "2026-10-25"), ev(eggs.id, -6, "pcs", "2026-10-30")];
-    const list = [{ id: "s", household_id: "h", name: "eggs", normalized_name: "egg", category: "eggs", quantity: 6, unit: "pcs", notes: null, recipe_id: null, status: "open" as const, added_by: null, purchased_by: null, purchased_at: null, created_at: "" }];
+    const list = [{ id: "s", household_id: "h", name: "eggs", normalized_name: "egg", category: "eggs", quantity: 6, unit: "pcs", notes: null, recipe_id: null, store: null, status: "open" as const, added_by: null, purchased_by: null, purchased_at: null, created_at: "" }];
     expect(restockSuggestions({ inventory: [eggs], events: ev2, cookings: [], recipes: [], shopping: list, today })).toHaveLength(0);
   });
   it("suggests ingredients of frequently cooked recipes that are missing", () => {

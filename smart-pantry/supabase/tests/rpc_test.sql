@@ -71,4 +71,14 @@ do $$ begin perform adjust_inventory((select id from inventory_items limit 1), -
 do $$ begin perform add_shopping_item((select '00000000-0000-0000-0000-000000000000'::uuid), 'x','x');
   raise exception 'should be forbidden'; exception when others then if sqlerrm <> 'forbidden' then raise; end if; end $$;
 
+-- Stores: purchase records the store on the new inventory item.
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+select id as s3 from add_shopping_item(:'hid','Butter','butter',1,'pcs','dairy',null,null,'Lidl') \gset
+select id as s4 from add_shopping_item(:'hid','butter','butter',1,'pcs','dairy',null,null,'Aldi') \gset
+select store = 'Lidl' and quantity = 2 as store_kept from shopping_items where id = :'s3' \gset
+\if :store_kept \else \echo 'FAIL store merge' \quit \endif
+select purchase_shopping_item(:'s3', true, 'fridge', null, 'best_before', null, 'Delhaize') as inv \gset
+select store = 'Delhaize' as store_ok from inventory_items where id = :'inv' \gset
+\if :store_ok \else \echo 'FAIL store purchase' \quit \endif
+
 \echo 'ALL DATABASE TESTS PASSED'

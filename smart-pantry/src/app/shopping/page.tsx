@@ -7,7 +7,8 @@ import { normalizeUnit, formatQuantity } from "@/lib/domain/units";
 import { parseQuickAdd } from "@/lib/domain/parse";
 import { LOCATIONS, type Location, type ShoppingItem } from "@/lib/domain/types";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { Empty, Sheet } from "@/components/ui";
+import { Empty, Sheet, StoreChip, StorePicker } from "@/components/ui";
+import { preferredStore } from "@/lib/domain/stores";
 import { restockSuggestions } from "@/lib/domain/restock";
 import { today } from "@/lib/store";
 
@@ -17,7 +18,11 @@ export default function ShoppingPage() {
   const { shopping, inventory, household, rpc, reload, upsertLocal, memberName, recipes, events, cookings } = useHousehold();
   const [text, setText] = useState("");
   const [buying, setBuying] = useState<ShoppingItem | null>(null);
-  const open = shopping.filter((s) => s.status === "open");
+  const stores = household?.stores ?? [];
+  const [tab, setTab] = useState<string>("all"); // "all" | store name | "none"
+  const [addStore, setAddStore] = useState<string | null>(null);
+  const allOpen = shopping.filter((s) => s.status === "open");
+  const open = allOpen.filter((s) => tab === "all" || (tab === "none" ? !s.store : s.store === tab));
   const done = shopping.filter((s) => s.status === "purchased").slice(0, 15);
   const low = lowStockSuggestions(inventory.filter((i) => i.status !== "spoiled" && i.status !== "discarded"), shopping);
   const smart = restockSuggestions({ inventory, events, cookings, recipes, shopping, today: today() });
@@ -25,10 +30,15 @@ export default function ShoppingPage() {
     ...smart.map((x) => ({ key: x.normalized_name, name: x.name, quantity: x.quantity as number | null, unit: x.unit as string | null, reason: x.reason })),
     ...low.filter((i) => !smart.some((x) => x.normalized_name === normalizeName(i.name)))
       .map((i) => ({ key: normalizeName(i.name), name: i.name, quantity: null, unit: null, reason: `Below your alert level (${formatQuantity(i.quantity, i.unit)} left)` })),
-  ].slice(0, 12);
+  ]
+    .map((x) => ({ ...x, store: preferredStore(x.name, inventory, shopping) }))
+    .filter((x) => tab === "all" || tab === "none" || !x.store || x.store === tab)
+    .slice(0, 12);
 
-  async function add(name: string, quantity: number | null, unit: string | null) {
-    const r = await rpc<ShoppingItem>("add_shopping_item", { p_household: household!.id, p_name: name, p_normalized: normalizeName(name), p_quantity: quantity, p_unit: unit ? normalizeUnit(unit) : null, p_category: guessCategory(name) });
+  async function add(name: string, quantity: number | null, unit: string | null, store?: string | null) {
+    // Store: picked explicitly → the open tab → where you last bought it.
+    const st = store ?? addStore ?? (tab !== "all" && tab !== "none" ? tab : null) ?? preferredStore(name, inventory, shopping);
+    const r = await rpc<ShoppingItem>("add_shopping_item", { p_household: household!.id, p_name: name, p_normalized: normalizeName(name), p_quantity: quantity, p_unit: unit ? normalizeUnit(unit) : null, p_category: guessCategory(name), p_store: st });
     if (r) upsertLocal("shopping", r);
   }
   async function submit(e: React.FormEvent) {
@@ -44,7 +54,7 @@ export default function ShoppingPage() {
     reload();
   }
   async function quickTick(s: ShoppingItem) {
-    await rpc("purchase_shopping_item", { p_item: s.id, p_add_to_inventory: false });
+    await rpc("purchase_shopping_item", { p_item: s.id, p_add_to_inventory: false, p_store: s.store });
     reload();
   }
 
@@ -55,6 +65,16 @@ export default function ShoppingPage() {
         <input className="input" placeholder="Add items: 2 l milk, bread, 6 eggs" value={text} onChange={(e) => setText(e.target.value)} />
         <button className="btn-primary shrink-0" disabled={!text.trim()}>Add</button>
       </form>
+      {text.trim() && <StorePicker stores={stores} value={addStore} onChange={setAddStore} label="Get it at" />}
+
+      {stores.length > 0 && (
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {[["all", "All"], ...stores.map((x) => [x, `🏪 ${x}`]), ["none", "No store"]].map(([id, label]) => {
+            const n = id === "all" ? allOpen.length : allOpen.filter((s) => (id === "none" ? !s.store : s.store === id)).length;
+            return <button key={id} onClick={() => setTab(id)} className={`btn shrink-0 ${tab === id ? "bg-stone-900 text-white" : "btn-ghost"}`}>{label} <span className="opacity-60">{n}</span></button>;
+          })}
+        </div>
+      )}
 
       {suggestions.length > 0 && (
         <section className="card overflow-hidden">
@@ -63,23 +83,23 @@ export default function ShoppingPage() {
               <h2 className="h2">💡 Suggested for you</h2>
               <p className="text-xs text-stone-500">Based on what you use often and your regular recipes</p>
             </div>
-            <button className="btn-ghost text-xs" onClick={async () => { for (const x of suggestions) await add(x.name, x.quantity, x.unit); }}>Add all</button>
+            <button className="btn-ghost text-xs" onClick={async () => { for (const x of suggestions) await add(x.name, x.quantity, x.unit, x.store); }}>Add all</button>
           </div>
           <ul className="divide-y divide-stone-100">
             {suggestions.map((x) => (
               <li key={x.key} className="flex items-center gap-3 px-4 py-2.5">
                 <div className="min-w-0 flex-1">
                   <div className="font-medium"><span className="capitalize">{x.name}</span>{x.quantity != null && <span className="font-normal text-stone-500"> · {formatQuantity(x.quantity, x.unit ?? "pcs")}</span>}</div>
-                  <div className="truncate text-xs text-violet-700">{x.reason}</div>
+                  <div className="flex items-center gap-1.5"><span className="truncate text-xs text-violet-700">{x.reason}</span><StoreChip store={x.store} stores={stores} /></div>
                 </div>
-                <button className="btn bg-brand-600 px-3 py-1.5 text-xs text-white" onClick={() => add(x.name, x.quantity, x.unit)}>＋ Add</button>
+                <button className="btn bg-brand-600 px-3 py-1.5 text-xs text-white" onClick={() => add(x.name, x.quantity, x.unit, x.store)}>＋ Add</button>
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      {open.length === 0 ? <Empty icon="🛒" title="All done!">Missing recipe ingredients can be added from any recipe.</Empty> : (
+      {open.length === 0 ? <Empty icon="🛒" title={tab === "all" ? "All done!" : "Nothing for this store"}>Missing recipe ingredients can be added from any recipe.</Empty> : (
         groupByCategory(open).map(([cat, items]) => (
           <section key={cat}>
             <h2 className="mb-1 px-1 text-sm font-medium capitalize text-stone-500">{cat}</h2>
@@ -93,6 +113,7 @@ export default function ShoppingPage() {
                       {memberName(s.added_by)}{s.recipe_id && ` · for ${recipes.find((r) => r.id === s.recipe_id)?.title ?? "a recipe"}`}{s.notes && ` · ${s.notes}`}
                     </div>
                   </div>
+                  <StoreCycle item={s} stores={stores} />
                   <NoteButton item={s} />
                   <button className="text-stone-300 hover:text-red-500" onClick={() => remove(s)} aria-label="Remove">✕</button>
                 </li>
@@ -105,12 +126,26 @@ export default function ShoppingPage() {
       {done.length > 0 && (
         <section>
           <h2 className="mb-1 px-1 text-sm font-medium text-stone-400">Recently bought</h2>
-          <ul className="space-y-1 px-1 text-sm text-stone-400">{done.map((s) => <li key={s.id} className="line-through">{s.name} <span className="no-underline">· {memberName(s.purchased_by)}</span></li>)}</ul>
+          <ul className="space-y-1 px-1 text-sm text-stone-400">{done.map((s) => <li key={s.id}><span className="line-through">{s.name}</span> · {memberName(s.purchased_by)}{s.store && ` · ${s.store}`}</li>)}</ul>
         </section>
       )}
 
       <BuySheet key={buying?.id ?? "none"} item={buying} onClose={() => setBuying(null)} onQuick={quickTick} />
     </div>
+  );
+}
+
+/** Tap the store chip to move an item to the other store (or none). */
+function StoreCycle({ item, stores }: { item: ShoppingItem; stores: string[] }) {
+  const { upsertLocal } = useHousehold();
+  if (!stores.length) return null;
+  const order = [...stores, null];
+  const next = order[(order.indexOf(item.store) + 1) % order.length];
+  return (
+    <button title="Change store" onClick={async () => {
+      const { data } = await supabaseBrowser().from("shopping_items").update({ store: next }).eq("id", item.id).select().single();
+      if (data) upsertLocal("shopping", data);
+    }}>{item.store ? <StoreChip store={item.store} stores={stores} /> : <span className="chip bg-white text-stone-400 ring-1 ring-dashed ring-stone-300">＋ store</span>}</button>
   );
 }
 
@@ -128,7 +163,8 @@ function NoteButton({ item }: { item: ShoppingItem }) {
 
 /** Ticking an item off offers to put it straight into the inventory. */
 function BuySheet({ item, onClose, onQuick }: { item: ShoppingItem | null; onClose: () => void; onQuick: (s: ShoppingItem) => void }) {
-  const { rpc, reload, toast } = useHousehold();
+  const { rpc, reload, toast, household } = useHousehold();
+  const [store, setStore] = useState<string | null>(item?.store ?? null);
   const [loc, setLoc] = useState<Location>(item ? DEFAULT_LOC[item.category] ?? "pantry" : "fridge");
   const [qty, setQty] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -145,8 +181,9 @@ function BuySheet({ item, onClose, onQuick }: { item: ShoppingItem | null; onClo
           <input className="input" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} aria-label="Expiry" />
           <select className="input" value={type} onChange={(e) => setType(e.target.value as typeof type)}><option value="best_before">Best-before</option><option value="use_by">Use-by</option></select>
         </div>
+        <StorePicker stores={household?.stores ?? []} value={store} onChange={setStore} label="Bought at" />
         <button className="btn-primary w-full py-3" onClick={async () => {
-          const r = await rpc("purchase_shopping_item", { p_item: item.id, p_add_to_inventory: true, p_location: loc, p_expiry: expiry || null, p_expiry_type: type, p_quantity: qty ? Number(qty) : null });
+          const r = await rpc("purchase_shopping_item", { p_item: item.id, p_add_to_inventory: true, p_location: loc, p_expiry: expiry || null, p_expiry_type: type, p_quantity: qty ? Number(qty) : null, p_store: store });
           await reload();
           toast(r ? `${item.name} added to ${loc}` : `${item.name} was already ticked off`);
           onClose();

@@ -18,6 +18,8 @@ export default function SettingsPage() {
   const [hhName, setHhName] = useState(household?.name ?? "");
   const [currency, setCurrency] = useState(household?.currency ?? "EUR");
   const [invite, setInvite] = useState<string | null>(null);
+  const [stores, setStores] = useState<string[]>(household?.stores ?? []);
+  const [newStore, setNewStore] = useState("");
   const list = (s: string) => s.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
 
   async function saveProfile() {
@@ -27,7 +29,7 @@ export default function SettingsPage() {
     reload();
   }
   async function saveHousehold() {
-    const { error } = await supabaseBrowser().from("households").update({ name: hhName, currency }).eq("id", household!.id);
+    const { error } = await supabaseBrowser().from("households").update({ name: hhName, currency, stores }).eq("id", household!.id);
     if (error) return toast(error.message, "error");
     toast("Household saved");
     reload();
@@ -61,7 +63,21 @@ export default function SettingsPage() {
           <input className="input col-span-2" value={hhName} onChange={(e) => setHhName(e.target.value)} />
           <input className="input" value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase().slice(0, 3))} />
         </div>
-        <button className="btn-ghost" onClick={saveHousehold}>Save</button>
+        <div>
+          <div className="label">Our stores – tag products and split the shopping list per store</div>
+          <div className="flex flex-wrap gap-2">
+            {stores.map((st) => (
+              <span key={st} className="chip gap-1 bg-stone-100 py-1 text-stone-700">🏪 {st}
+                <button aria-label={`Remove ${st}`} className="text-stone-400 hover:text-red-500" onClick={() => setStores(stores.filter((x) => x !== st))}>✕</button>
+              </span>
+            ))}
+          </div>
+          <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); const v = newStore.trim(); if (v && !stores.includes(v)) setStores([...stores, v]); setNewStore(""); }}>
+            <input className="input" placeholder="e.g. Lidl" value={newStore} onChange={(e) => setNewStore(e.target.value)} />
+            <button className="btn-ghost shrink-0">Add store</button>
+          </form>
+        </div>
+        <button className="btn-primary" onClick={saveHousehold}>Save household</button>
         <div>
           <div className="label">Members</div>
           <ul className="flex flex-wrap gap-2">{members.map((m) => <li key={m.id} className="chip gap-1.5 bg-stone-100 py-1 text-stone-700"><span className="h-2.5 w-2.5 rounded-full" style={{ background: m.avatar_color }} />{m.display_name}</li>)}</ul>

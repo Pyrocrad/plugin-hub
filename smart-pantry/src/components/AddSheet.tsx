@@ -7,7 +7,8 @@ import { UNIT_OPTIONS, normalizeUnit } from "@/lib/domain/units";
 import { parseQuickAdd } from "@/lib/domain/parse";
 import { addDays } from "@/lib/domain/expiry";
 import { guessCategory } from "@/lib/domain/shopping";
-import { Sheet } from "./ui";
+import { Sheet, StorePicker } from "./ui";
+import { matchStore, preferredStore } from "@/lib/domain/stores";
 
 export interface Draft {
   key: number;
@@ -20,6 +21,7 @@ export interface Draft {
   expiry_type: ExpiryType;
   barcode?: string | null;
   confidence?: string;
+  store?: string | null;
 }
 
 const DEFAULT_LOC: Record<string, Location> = { meat: "fridge", fish: "fridge", dairy: "fridge", eggs: "fridge", vegetables: "fridge", fruit: "pantry", frozen: "freezer" };
@@ -34,14 +36,17 @@ export function draft(p: Partial<Draft> & { name: string }): Draft {
 }
 
 type Mode = "quick" | "scan" | "barcode";
+export type ScanMode = "photo" | "receipt" | "list";
 
-export function AddSheet({ open, onClose, initialLocation }: { open: boolean; onClose: () => void; initialLocation?: Location }) {
-  const { household, toast, upsertLocal } = useHousehold();
-  const [mode, setMode] = useState<Mode>("quick");
+export function AddSheet({ open, onClose, initialLocation, sharedFiles }: { open: boolean; onClose: () => void; initialLocation?: Location; sharedFiles?: File[] }) {
+  const { household, toast, upsertLocal, inventory } = useHousehold();
+  const [mode, setMode] = useState<Mode>(sharedFiles?.length ? "scan" : "quick");
+  const [store, setStore] = useState<string | null>(null);
+  const stores = household?.stores ?? [];
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { if (!open) setDrafts([]); }, [open]);
+  useEffect(() => { if (!open) { setDrafts([]); setStore(null); } }, [open]);
   const addDrafts = (ds: Draft[]) => setDrafts((p) => [...p, ...ds.map((d) => (initialLocation && !d.confidence ? { ...d, location: initialLocation } : d))]);
 
   async function saveAll() {
@@ -51,6 +56,7 @@ export function AddSheet({ open, onClose, initialLocation }: { open: boolean; on
     const rows = valid.map((d) => ({
       household_id: household!.id, name: d.name.trim(), category: d.category, quantity: d.quantity, unit: normalizeUnit(d.unit),
       location: d.location, expiry_date: d.expiry_date || null, expiry_type: d.expiry_type, purchase_date: today(), barcode: d.barcode ?? null,
+      store: d.store !== undefined ? d.store : store ?? preferredStore(d.name, inventory),
     }));
     const { data, error } = await supabaseBrowser().from("inventory_items").insert(rows).select();
     setSaving(false);
@@ -63,17 +69,19 @@ export function AddSheet({ open, onClose, initialLocation }: { open: boolean; on
   return (
     <Sheet open={open} onClose={onClose} title="Add products">
       <div className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-stone-100 p-1 text-sm">
-        {([["quick", "✍️ Type / speak"], ["scan", "📷 Photo / receipt"], ["barcode", "▦ Barcode"]] as [Mode, string][]).map(([m, l]) => (
+        {([["quick", "✍️ Type / speak"], ["scan", "📷 Photo / list"], ["barcode", "▦ Barcode"]] as [Mode, string][]).map(([m, l]) => (
           <button key={m} onClick={() => setMode(m)} className={`rounded-lg py-1.5 ${mode === m ? "bg-white font-medium shadow-sm" : "text-stone-500"}`}>{l}</button>
         ))}
       </div>
       {mode === "quick" && <QuickAdd onAdd={addDrafts} />}
-      {mode === "scan" && <ScanAdd onAdd={addDrafts} />}
+      {mode === "scan" && <ScanAdd onAdd={addDrafts} onStore={(raw) => { const m = matchStore(raw, stores); if (m) setStore(m); }} initialFiles={sharedFiles} />}
       {mode === "barcode" && <BarcodeAdd onAdd={addDrafts} />}
 
       {drafts.length > 0 && (
         <div className="mt-5 space-y-3">
           <div className="label">Review before saving ({drafts.length})</div>
+          <StorePicker stores={stores} value={store} onChange={setStore} label="Bought at" />
+          {!store && stores.length > 0 && <p className="text-xs text-stone-400">No store picked – each product gets the store you last bought it at.</p>}
           {drafts.map((d) => (
             <DraftRow key={d.key} d={d} onChange={(nd) => setDrafts((p) => p.map((x) => (x.key === d.key ? nd : x)))} onRemove={() => setDrafts((p) => p.filter((x) => x.key !== d.key))} />
           ))}
@@ -137,40 +145,69 @@ function QuickAdd({ onAdd }: { onAdd: (d: Draft[]) => void }) {
   );
 }
 
-function ScanAdd({ onAdd }: { onAdd: (d: Draft[]) => void }) {
+function ScanAdd({ onAdd, onStore, initialFiles }: { onAdd: (d: Draft[]) => void; onStore: (raw: string | null) => void; initialFiles?: File[] }) {
   const { toast } = useHousehold();
-  const [busy, setBusy] = useState<null | "photo" | "receipt">(null);
+  const [busy, setBusy] = useState<null | ScanMode>(null);
+  const [progress, setProgress] = useState("");
 
-  async function handle(file: File, mode: "photo" | "receipt") {
+  async function handle(files: File[], mode: ScanMode) {
     setBusy(mode);
     try {
-      const { base64, mediaType } = await downscale(file);
-      const r = await fetch("/api/ai/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: base64, mediaType, mode }) });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error);
-      if (!j.items.length) toast("No groceries recognised", "error");
-      onAdd(j.items.map((it: any) => draft({
-        name: it.name, category: it.category, quantity: it.quantity, unit: normalizeUnit(it.unit), location: it.location, expiry_type: it.expiry_type,
-        expiry_date: it.suggested_shelf_days != null ? addDays(today(), it.suggested_shelf_days) : "", confidence: it.confidence,
-      })));
+      let total = 0;
+      for (const [n, file] of files.entries()) {
+        if (files.length > 1) setProgress(`${n + 1}/${files.length}`);
+        const { base64, mediaType } = await downscale(file);
+        const r = await fetch("/api/ai/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: base64, mediaType, mode }) });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error);
+        if (j.store) onStore(j.store);
+        total += j.items.length;
+        onAdd(j.items.map((it: any) => draft({
+          name: it.name, category: it.category, quantity: it.quantity, unit: normalizeUnit(it.unit), location: it.location, expiry_type: it.expiry_type,
+          expiry_date: it.suggested_shelf_days != null ? addDays(today(), it.suggested_shelf_days) : "", confidence: it.confidence,
+        })));
+      }
+      if (!total) toast("Nothing recognised – try a sharper photo", "error");
     } catch (e: any) {
       toast(e.message || "Scan failed", "error");
     } finally {
       setBusy(null);
+      setProgress("");
     }
   }
 
+  // Photos shared into the app from the gallery / WhatsApp: treat as a grocery list by default.
+  const sharedDone = useRef(false);
+  const [shared, setShared] = useState<File[] | null>(initialFiles?.length ? initialFiles : null);
+
+  const cards: [ScanMode, string, string, string][] = [
+    ["list", "📝", "Grocery list", "Handwritten or typed list, notes app screenshot"],
+    ["receipt", "🧾", "Receipt", "Also detects the store"],
+    ["photo", "🛍️", "Groceries", "Photo of the products themselves"],
+  ];
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {(["photo", "receipt"] as const).map((m) => (
-        <label key={m} className="card flex cursor-pointer flex-col items-center gap-1 p-5 text-center hover:bg-stone-50">
-          <span className="text-3xl">{m === "photo" ? "🛍️" : "🧾"}</span>
-          <span className="text-sm font-medium">{busy === m ? "Reading…" : m === "photo" ? "Photo of groceries" : "Scan receipt"}</span>
-          <span className="text-xs text-stone-500">AI suggests, you confirm</span>
-          <input type="file" accept="image/*" capture="environment" className="hidden" disabled={!!busy} onChange={(e) => e.target.files?.[0] && handle(e.target.files[0], m)} />
-        </label>
-      ))}
-      <p className="col-span-2 text-xs text-stone-500">Expiry dates from scans are estimates – check the packaging for use-by dates.</p>
+    <div className="space-y-3">
+      {shared && !sharedDone.current && (
+        <div className="rounded-2xl bg-brand-50 p-3 text-sm">
+          <div className="font-medium text-brand-900">{shared.length} shared photo{shared.length > 1 ? "s" : ""} – what is it?</div>
+          <div className="mt-2 flex gap-2">
+            {cards.map(([m, icon, label]) => (
+              <button key={m} className="btn-ghost flex-1 bg-white" disabled={!!busy} onClick={() => { sharedDone.current = true; handle(shared, m).then(() => setShared(null)); }}>{icon} {label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-3 gap-2">
+        {cards.map(([m, icon, label, hint]) => (
+          <label key={m} className={`card flex cursor-pointer flex-col items-center gap-1 p-3 text-center hover:bg-stone-50 ${m === "list" ? "ring-brand-500" : ""}`}>
+            <span className="text-3xl">{icon}</span>
+            <span className="text-sm font-medium">{busy === m ? `Reading… ${progress}` : label}</span>
+            <span className="text-[11px] leading-tight text-stone-500">{hint}</span>
+            <input type="file" accept="image/*" multiple className="hidden" disabled={!!busy} onChange={(e) => e.target.files?.length && handle([...e.target.files], m)} />
+          </label>
+        ))}
+      </div>
+      <p className="text-xs text-stone-500">You can pick several photos at once. AI suggests, you confirm before anything is added. Expiry dates are estimates – check use-by dates on the packaging.</p>
     </div>
   );
 }

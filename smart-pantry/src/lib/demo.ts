@@ -8,7 +8,7 @@ const ts = (n: number, h = 18) => { const d = new Date(); d.setDate(d.getDate() 
 let i = 0;
 const item = (name: string, category: string, quantity: number, unit: string, location: InventoryItem["location"], expiry: number | null, type: InventoryItem["expiry_type"] = "best_before", extra: Partial<InventoryItem> = {}): InventoryItem => ({
   id: `it${++i}`, household_id: H, name, category, quantity, unit, location, purchase_date: day(-3), expiry_date: expiry == null ? null : day(expiry),
-  expiry_type: expiry == null ? "none" : type, opened_at: null, days_after_opening: null, low_stock_threshold: null, barcode: null, notes: null,
+  expiry_type: expiry == null ? "none" : type, opened_at: null, days_after_opening: null, low_stock_threshold: null, barcode: null, notes: null, store: i % 3 === 0 ? "Delhaize" : "Lidl",
   status: "active", version: 1, created_by: A, updated_by: i % 3 ? A : S, created_at: ts(-3), updated_at: ts(-(i % 4), 9 + i % 10), ...extra,
 });
 
@@ -97,12 +97,12 @@ export const demoEvents: InventoryEvent[] = [
   ev("it6", "consumed", 6, 2, "pcs", A, -15, 9), ev("it22", "consumed", 1, 0.5, "pcs", A, -4, 8), ev("it22", "consumed", 1, 0.5, "pcs", S, -11, 8),
 ];
 const sh = (id: string, name: string, n: string, category: string, quantity: number | null, unit: string | null, by: string, extra: Partial<ShoppingItem> = {}): ShoppingItem => ({
-  id, household_id: H, name, normalized_name: n, category, quantity, unit, notes: null, recipe_id: null, status: "open", added_by: by, purchased_by: null, purchased_at: null, created_at: ts(-1), ...extra,
+  id, household_id: H, name, normalized_name: n, category, quantity, unit, notes: null, recipe_id: null, store: null, status: "open", added_by: by, purchased_by: null, purchased_at: null, created_at: ts(-1), ...extra,
 });
 export const demoShopping: ShoppingItem[] = [
-  sh("s1", "Honey", "honey", "other", 1, "tbsp", A, { recipe_id: "r2" }), sh("s2", "Spring onion", "spring onion", "vegetables", 2, "pcs", A, { recipe_id: "r2" }),
-  sh("s3", "Bananas", "banana", "fruit", 6, "pcs", S, { notes: "not too ripe" }), sh("s4", "Toilet paper", "toilet paper", "other", null, null, S),
+  sh("s1", "Honey", "honey", "other", 1, "tbsp", A, { recipe_id: "r2", store: "Delhaize" }), sh("s2", "Spring onion", "spring onion", "vegetables", 2, "pcs", A, { recipe_id: "r2", store: "Lidl" }),
+  sh("s3", "Bananas", "banana", "fruit", 6, "pcs", S, { notes: "not too ripe", store: "Lidl" }), sh("s4", "Toilet paper", "toilet paper", "other", null, null, S),
   sh("s5", "Oat milk", "oat milk", "drinks", 1, "l", S, { status: "purchased", purchased_by: A, purchased_at: ts(-1) }),
 ];
-export const demoHousehold = { id: H, name: "Alex & Sam's kitchen", currency: "EUR", expiry_alert_days: 3 };
+export const demoHousehold = { id: H, name: "Alex & Sam's kitchen", currency: "EUR", expiry_alert_days: 3, stores: ["Lidl", "Delhaize"] };
 export const demoUser = { id: A, email: "alex@example.com" };
