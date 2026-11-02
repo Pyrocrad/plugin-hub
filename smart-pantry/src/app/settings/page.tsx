@@ -43,9 +43,10 @@ export default function SettingsPage() {
   return (
     <div className="space-y-5">
       <h1 className="h1">Settings</h1>
-      <nav className="grid grid-cols-2 gap-2 md:hidden">
+      <nav className="grid grid-cols-3 gap-2 md:hidden">
         <Link href="/history" className="card p-3 text-sm">📖 History</Link>
         <Link href="/preferences" className="card p-3 text-sm">❤️ Preferences</Link>
+        <Link href="/stores" className="card p-3 text-sm">🧭 Store layout</Link>
       </nav>
 
       <section className="card space-y-3 p-4">
@@ -73,7 +74,7 @@ export default function SettingsPage() {
             ))}
           </div>
           <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); const v = newStore.trim(); if (v && !stores.includes(v)) setStores([...stores, v]); setNewStore(""); }}>
-            <input className="input" placeholder="e.g. Lidl" value={newStore} onChange={(e) => setNewStore(e.target.value)} />
+            <input className="input" placeholder="e.g. Colruyt" value={newStore} onChange={(e) => setNewStore(e.target.value)} />
             <button className="btn-ghost shrink-0">Add store</button>
           </form>
         </div>

@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useHousehold } from "@/lib/store";
 import { groupByCategory, guessCategory, lowStockSuggestions } from "@/lib/domain/shopping";
 import { normalizeName } from "@/lib/domain/names";
@@ -8,18 +10,23 @@ import { parseQuickAdd } from "@/lib/domain/parse";
 import { LOCATIONS, type Location, type ShoppingItem } from "@/lib/domain/types";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Empty, Sheet, StoreChip, StorePicker } from "@/components/ui";
-import { preferredStore } from "@/lib/domain/stores";
+import { preferredStore, sortForStore } from "@/lib/domain/stores";
 import { restockSuggestions } from "@/lib/domain/restock";
 import { today } from "@/lib/store";
 
 const DEFAULT_LOC: Record<string, Location> = { meat: "fridge", fish: "fridge", dairy: "fridge", eggs: "fridge", vegetables: "fridge", frozen: "freezer" };
 
 export default function ShoppingPage() {
-  const { shopping, inventory, household, rpc, reload, upsertLocal, memberName, recipes, events, cookings } = useHousehold();
+  return <Suspense><ShoppingInner /></Suspense>;
+}
+
+function ShoppingInner() {
+  const { shopping, inventory, household, rpc, reload, upsertLocal, memberName, recipes, events, cookings, storeProducts } = useHousehold();
+  const params = useSearchParams();
   const [text, setText] = useState("");
   const [buying, setBuying] = useState<ShoppingItem | null>(null);
   const stores = household?.stores ?? [];
-  const [tab, setTab] = useState<string>("all"); // "all" | store name | "none"
+  const [tab, setTab] = useState<string>(params.get("store") ?? "all"); // "all" | store name | "none"
   const [addStore, setAddStore] = useState<string | null>(null);
   const allOpen = shopping.filter((s) => s.status === "open");
   const open = allOpen.filter((s) => tab === "all" || (tab === "none" ? !s.store : s.store === tab));
@@ -58,9 +65,30 @@ export default function ShoppingPage() {
     reload();
   }
 
+  const row = (s: ShoppingItem, n?: number) => (
+<li key={s.id} className="flex items-center gap-3 px-3 py-2.5">
+                  {n != null && <span className="w-5 text-right text-xs tabular-nums text-stone-400">{n}</span>}
+                  <button className="h-6 w-6 shrink-0 rounded-full border-2 border-stone-300 hover:border-brand-500" onClick={() => setBuying(s)} aria-label={`Bought ${s.name}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium">{s.name} {s.quantity != null && <span className="font-normal text-stone-500">· {formatQuantity(s.quantity, s.unit ?? "pcs")}</span>}</div>
+                    <div className="truncate text-xs text-stone-400">
+                      {memberName(s.added_by)}{s.recipe_id && ` · for ${recipes.find((r) => r.id === s.recipe_id)?.title ?? "a recipe"}`}{s.notes && ` · ${s.notes}`}
+                    </div>
+                  </div>
+                  <StoreCycle item={s} stores={stores} />
+                  <NoteButton item={s} />
+                  <button className="text-stone-300 hover:text-red-500" onClick={() => remove(s)} aria-label="Remove">✕</button>
+                </li>
+  );
+  const inStore = tab !== "all" && tab !== "none";
+  const walk = inStore ? sortForStore(open, storeProducts, tab) : null;
+
   return (
     <div className="space-y-4">
-      <h1 className="h1">Shopping list</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="h1">Shopping list</h1>
+        {stores.length > 0 && <Link href={`/stores${inStore ? `?s=${encodeURIComponent(tab)}` : ""}`} className="btn-ghost text-xs">🧭 Store layout</Link>}
+      </div>
       <form onSubmit={submit} className="flex gap-2">
         <input className="input" placeholder="Add items: 2 l milk, bread, 6 eggs" value={text} onChange={(e) => setText(e.target.value)} />
         <button className="btn-primary shrink-0" disabled={!text.trim()}>Add</button>
@@ -99,25 +127,27 @@ export default function ShoppingPage() {
         </section>
       )}
 
-      {open.length === 0 ? <Empty icon="🛒" title={tab === "all" ? "All done!" : "Nothing for this store"}>Missing recipe ingredients can be added from any recipe.</Empty> : (
+      {walk && open.length > 0 ? (
+        <>
+          {walk.ordered.length > 0 && (
+            <section>
+              <h2 className="mb-1 px-1 text-sm font-medium text-stone-500">🚶 In {tab} walking order</h2>
+              <ul className="card divide-y divide-stone-100">{walk.ordered.map((s, i) => row(s, i + 1))}</ul>
+            </section>
+          )}
+          {walk.unplaced.length > 0 && (
+            <section>
+              <h2 className="mb-1 px-1 text-sm font-medium text-stone-500">Not in your {tab} layout yet <Link href={`/stores?s=${encodeURIComponent(tab)}`} className="text-brand-700">· arrange →</Link></h2>
+              <ul className="card divide-y divide-stone-100">{walk.unplaced.map((s) => row(s))}</ul>
+            </section>
+          )}
+        </>
+      ) : open.length === 0 ? <Empty icon="🛒" title={tab === "all" ? "All done!" : "Nothing for this store"}>Missing recipe ingredients can be added from any recipe.</Empty> : (
         groupByCategory(open).map(([cat, items]) => (
           <section key={cat}>
             <h2 className="mb-1 px-1 text-sm font-medium capitalize text-stone-500">{cat}</h2>
             <ul className="card divide-y divide-stone-100">
-              {items.map((s) => (
-                <li key={s.id} className="flex items-center gap-3 px-3 py-2.5">
-                  <button className="h-6 w-6 shrink-0 rounded-full border-2 border-stone-300 hover:border-brand-500" onClick={() => setBuying(s)} aria-label={`Bought ${s.name}`} />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">{s.name} {s.quantity != null && <span className="font-normal text-stone-500">· {formatQuantity(s.quantity, s.unit ?? "pcs")}</span>}</div>
-                    <div className="truncate text-xs text-stone-400">
-                      {memberName(s.added_by)}{s.recipe_id && ` · for ${recipes.find((r) => r.id === s.recipe_id)?.title ?? "a recipe"}`}{s.notes && ` · ${s.notes}`}
-                    </div>
-                  </div>
-                  <StoreCycle item={s} stores={stores} />
-                  <NoteButton item={s} />
-                  <button className="text-stone-300 hover:text-red-500" onClick={() => remove(s)} aria-label="Remove">✕</button>
-                </li>
-              ))}
+              {items.map((s) => row(s))}
             </ul>
           </section>
         ))

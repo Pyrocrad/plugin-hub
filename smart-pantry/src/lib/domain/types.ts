@@ -144,3 +144,12 @@ export const LOCATIONS: { id: Location; label: string; icon: string }[] = [
   { id: "pantry", label: "Pantry", icon: "🥫" },
   { id: "other", label: "Other", icon: "📦" },
 ];
+
+export interface StoreProduct {
+  household_id: string;
+  store: string;
+  normalized_name: string;
+  name: string;
+  category: string;
+  position: number;
+}

@@ -120,6 +120,13 @@ Add the shops you use in **Settings → Our stores** (e.g. two supermarkets). Af
 * "Bought → into inventory" records the store. Receipt scans detect the shop name automatically.
 * Database: `supabase/migrations/0002_stores.sql` (run it after `0001`).
 
+## Store layout (walking order)
+**Shopping → 🧭 Store layout** shows each store's own product list: everything you've ever tagged with that store,
+added automatically. You can also add products by hand there. Drag ≡ (or use ▲▼) to put them in the order you walk through the shop.
+"Sort by aisle type" gives a quick starting point. On a store's tab, the shopping list is then numbered in that order. Items
+the store hasn't seen yet are listed at the end until you place them. The order is shared live with your partner.
+Database: `supabase/migrations/0003_store_order.sql`.
+
 ## Grocery-list photos
 **Add → Photo / list → Grocery list** reads a photo of a handwritten or printed list, or a screenshot from a notes or
 chat app, and turns each line into a product. You can pick several photos at once. Everything appears in the review

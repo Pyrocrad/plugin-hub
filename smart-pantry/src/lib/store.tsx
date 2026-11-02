@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabaseBrowser } from "./supabase/client";
-import type { Cooking, InventoryEvent, InventoryItem, PreferenceOverride, Profile, Rating, Recipe, ShoppingItem } from "./domain/types";
+import type { Cooking, InventoryEvent, InventoryItem, PreferenceOverride, Profile, Rating, Recipe, ShoppingItem, StoreProduct } from "./domain/types";
 
 interface Household { id: string; name: string; currency: string; expiry_alert_days: number; stores: string[] }
 
@@ -18,11 +18,14 @@ interface State {
   cookings: Cooking[];
   ratings: Rating[];
   overrides: PreferenceOverride[];
+  storeProducts: StoreProduct[];
   online: boolean;
 }
 
 interface Ctx extends State {
   reload: () => Promise<void>;
+  setStoreProducts: (sp: StoreProduct[]) => void;
+  reloadStoreProducts: () => Promise<void>;
   rpc: <T = unknown>(fn: string, args: Record<string, unknown>) => Promise<T | null>;
   upsertLocal: (table: TableKey, row: any) => void;
   memberName: (id: string | null | undefined) => string;
@@ -50,7 +53,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const sb = supabaseBrowser();
   const [s, setS] = useState<State>({
     ready: false, user: null, household: null, members: [], inventory: [], events: [], shopping: [],
-    recipes: [], cookings: [], ratings: [], overrides: [], online: true,
+    recipes: [], cookings: [], ratings: [], overrides: [], storeProducts: [], online: true,
   });
   const [toasts, setToasts] = useState<Ctx["toasts"]>([]);
   const hid = s.household?.id;
@@ -66,7 +69,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     if (DEMO) {
       const d = await import("./demo");
       return setS((p) => ({ ...p, ready: true, user: d.demoUser as unknown as User, household: d.demoHousehold, members: d.demoMembers, inventory: d.demoInventory,
-        events: d.demoEvents, shopping: d.demoShopping, recipes: d.demoRecipes, cookings: d.demoCookings, ratings: d.demoRatings, overrides: d.demoOverrides }));
+        events: d.demoEvents, shopping: d.demoShopping, recipes: d.demoRecipes, cookings: d.demoCookings, ratings: d.demoRatings, overrides: d.demoOverrides, storeProducts: d.demoStoreProducts }));
     }
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return setS((p) => ({ ...p, ready: true, user: null }));
@@ -74,7 +77,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     if (!mem) return setS((p) => ({ ...p, ready: true, user, household: null }));
     const id = mem.household_id as string;
     const since = new Date(Date.now() - 30 * 86400000).toISOString();
-    const [members, inv, ev, shop, rec, cook, rat, ov] = await Promise.all([
+    const [members, inv, ev, shop, rec, cook, rat, ov, sp] = await Promise.all([
       sb.from("household_members").select("profiles:user_id(*)").eq("household_id", id),
       // Active stock + recently finished items (for "recently consumed" & waste stats).
       sb.from("inventory_items").select("*").eq("household_id", id).or(`status.eq.active,updated_at.gte.${since}`).order("name"),
@@ -84,6 +87,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       sb.from("cookings").select("*").eq("household_id", id).order("cooked_at", { ascending: false }).limit(300),
       sb.from("ratings").select("*").eq("household_id", id),
       sb.from("preference_overrides").select("*").eq("household_id", id),
+      sb.from("store_products").select("*").eq("household_id", id).order("position"),
     ]);
     setS((p) => ({
       ...p,
@@ -98,6 +102,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       cookings: cook.data ?? [],
       ratings: rat.data ?? [],
       overrides: ov.data ?? [],
+      storeProducts: sp.data ?? [],
     }));
   }, [sb]);
 
@@ -109,6 +114,12 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     });
     return () => data.subscription.unsubscribe();
   }, [sb, reload]);
+
+  const reloadStoreProducts = useCallback(async () => {
+    if (DEMO || !hid) return;
+    const { data } = await sb.from("store_products").select("*").eq("household_id", hid).order("position");
+    if (data) setS((p) => ({ ...p, storeProducts: data }));
+  }, [sb, hid]);
 
   const upsertLocal = useCallback((table: TableKey, row: any) => {
     setS((p) => {
@@ -137,6 +148,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     ch = ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "inventory_events", filter }, (payload: any) =>
       setS((p) => (p.events.some((e) => e.id === payload.new.id) ? p : { ...p, events: [payload.new, ...p.events].slice(0, 300) })),
     );
+    ch = ch.on("postgres_changes", { event: "*", schema: "public", table: "store_products", filter }, () => reloadStoreProducts());
     ch.subscribe((status: string) => {
       setS((p) => ({ ...p, online: status === "SUBSCRIBED" }));
       // After a reconnect we may have missed events: resync once.
@@ -151,7 +163,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       sb.removeChannel(ch);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, [sb, hid, reload, upsertLocal]);
+  }, [sb, hid, reload, upsertLocal, reloadStoreProducts]);
 
   const rpc = useCallback(async <T,>(fn: string, args: Record<string, unknown>): Promise<T | null> => {
     if (DEMO) { toast("Demo mode – changes aren't saved"); return null; }
@@ -171,7 +183,8 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     return s.members.find((m) => m.id === id)?.display_name ?? "Housemate";
   }, [s.members, s.user]);
 
-  const value = useMemo(() => ({ ...s, reload, rpc, upsertLocal, memberName, toast, toasts }), [s, reload, rpc, upsertLocal, memberName, toast, toasts]);
+  const setStoreProducts = useCallback((sp: StoreProduct[]) => setS((p) => ({ ...p, storeProducts: sp })), []);
+  const value = useMemo(() => ({ ...s, reload, rpc, upsertLocal, memberName, toast, toasts, setStoreProducts, reloadStoreProducts }), [s, reload, rpc, upsertLocal, memberName, toast, toasts, setStoreProducts, reloadStoreProducts]);
   return <HouseholdCtx.Provider value={value}>{children}</HouseholdCtx.Provider>;
 }
 

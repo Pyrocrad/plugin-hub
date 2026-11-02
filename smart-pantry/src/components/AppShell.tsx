@@ -10,6 +10,7 @@ const NAV = [
   { href: "/recipes", label: "Chef", icon: "👩‍🍳", mobile: true },
   { href: "/history", label: "History", icon: "📖", mobile: false },
   { href: "/shopping", label: "Shopping", icon: "🛒", mobile: true },
+  { href: "/stores", label: "Store layout", icon: "🧭", mobile: false },
   { href: "/preferences", label: "Preferences", icon: "❤️", mobile: false },
   { href: "/settings", label: "Settings", icon: "⚙️", mobile: true },
 ];

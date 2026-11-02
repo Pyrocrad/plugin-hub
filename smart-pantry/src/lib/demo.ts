@@ -1,5 +1,5 @@
 // Sample household used when NEXT_PUBLIC_DEMO=1 (screenshots, UI previews). No backend needed.
-import type { Cooking, InventoryEvent, InventoryItem, PreferenceOverride, Profile, Rating, Recipe, ShoppingItem } from "./domain/types";
+import type { StoreProduct, Cooking, InventoryEvent, InventoryItem, PreferenceOverride, Profile, Rating, Recipe, ShoppingItem } from "./domain/types";
 
 const A = "u-alex", S = "u-sam", H = "demo-household";
 const day = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
@@ -8,7 +8,7 @@ const ts = (n: number, h = 18) => { const d = new Date(); d.setDate(d.getDate() 
 let i = 0;
 const item = (name: string, category: string, quantity: number, unit: string, location: InventoryItem["location"], expiry: number | null, type: InventoryItem["expiry_type"] = "best_before", extra: Partial<InventoryItem> = {}): InventoryItem => ({
   id: `it${++i}`, household_id: H, name, category, quantity, unit, location, purchase_date: day(-3), expiry_date: expiry == null ? null : day(expiry),
-  expiry_type: expiry == null ? "none" : type, opened_at: null, days_after_opening: null, low_stock_threshold: null, barcode: null, notes: null, store: i % 3 === 0 ? "Delhaize" : "Lidl",
+  expiry_type: expiry == null ? "none" : type, opened_at: null, days_after_opening: null, low_stock_threshold: null, barcode: null, notes: null, store: i % 3 === 0 ? "Delhaize" : "Colruyt",
   status: "active", version: 1, created_by: A, updated_by: i % 3 ? A : S, created_at: ts(-3), updated_at: ts(-(i % 4), 9 + i % 10), ...extra,
 });
 
@@ -100,9 +100,18 @@ const sh = (id: string, name: string, n: string, category: string, quantity: num
   id, household_id: H, name, normalized_name: n, category, quantity, unit, notes: null, recipe_id: null, store: null, status: "open", added_by: by, purchased_by: null, purchased_at: null, created_at: ts(-1), ...extra,
 });
 export const demoShopping: ShoppingItem[] = [
-  sh("s1", "Honey", "honey", "other", 1, "tbsp", A, { recipe_id: "r2", store: "Delhaize" }), sh("s2", "Spring onion", "spring onion", "vegetables", 2, "pcs", A, { recipe_id: "r2", store: "Lidl" }),
-  sh("s3", "Bananas", "banana", "fruit", 6, "pcs", S, { notes: "not too ripe", store: "Lidl" }), sh("s4", "Toilet paper", "toilet paper", "other", null, null, S),
+  sh("s1", "Honey", "honey", "other", 1, "tbsp", A, { recipe_id: "r2", store: "Delhaize" }), sh("s2", "Spring onion", "spring onion", "vegetables", 2, "pcs", A, { recipe_id: "r2", store: "Colruyt" }),
+  sh("s3", "Bananas", "banana", "fruit", 6, "pcs", S, { notes: "not too ripe", store: "Colruyt" }), sh("s4", "Toilet paper", "toilet paper", "other", null, null, S, { store: "Colruyt" }), sh("s6", "Eggs", "egg", "eggs", 12, "pcs", A, { store: "Colruyt" }), sh("s7", "Onions", "onion", "vegetables", 1, "kg", S, { store: "Colruyt" }), sh("s8", "Coffee beans", "coffee bean", "drinks", 1, "pcs", A, { store: "Colruyt" }),
   sh("s5", "Oat milk", "oat milk", "drinks", 1, "l", S, { status: "purchased", purchased_by: A, purchased_at: ts(-1) }),
 ];
-export const demoHousehold = { id: H, name: "Alex & Sam's kitchen", currency: "EUR", expiry_alert_days: 3, stores: ["Lidl", "Delhaize"] };
+export const demoHousehold = { id: H, name: "Alex & Sam's kitchen", currency: "EUR", expiry_alert_days: 3, stores: ["Delhaize", "Colruyt"] };
 export const demoUser = { id: A, email: "alex@example.com" };
+
+const walk = (store: string, names: [string, string][]): StoreProduct[] =>
+  names.map(([name, category], position) => ({ household_id: H, store, normalized_name: name.toLowerCase(), name, category, position }));
+export const demoStoreProducts: StoreProduct[] = [
+  ...walk("Colruyt", [["Bananas", "fruit"], ["Lemons", "fruit"], ["Spring onion", "vegetables"], ["Broccoli", "vegetables"], ["Cherry tomatoes", "vegetables"], ["Onions", "vegetables"],
+    ["Garlic", "vegetables"], ["Basmati rice", "pasta & rice"], ["Spaghetti", "pasta & rice"], ["Chopped tomatoes", "sauces"], ["Coconut milk", "sauces"], ["Olive oil", "oils"],
+    ["Toilet paper", "other"], ["Chicken breast", "meat"], ["Minced beef", "meat"], ["Eggs", "eggs"], ["Whole milk", "dairy"], ["Greek yoghurt", "dairy"], ["Frozen peas", "frozen"]]),
+  ...walk("Delhaize", [["Bread", "bread"], ["Spinach", "vegetables"], ["Honey", "other"], ["Soy sauce", "sauces"], ["Parmesan", "dairy"], ["Cooking cream", "dairy"], ["Salmon fillets", "fish"]]),
+];

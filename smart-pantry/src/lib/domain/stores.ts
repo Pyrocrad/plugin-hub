@@ -1,4 +1,4 @@
-import type { InventoryItem, ShoppingItem } from "./types";
+import type { InventoryItem, ShoppingItem, StoreProduct } from "./types";
 import { normalizeName } from "./names";
 
 /** Store this household most recently bought a product at (null if never recorded). */
@@ -23,4 +23,36 @@ const STORE_COLORS = ["bg-sky-100 text-sky-800", "bg-amber-100 text-amber-800", 
 export function storeColor(store: string, stores: string[]): string {
   const i = stores.indexOf(store);
   return STORE_COLORS[(i < 0 ? 3 : i) % STORE_COLORS.length];
+}
+
+
+/** One row per product for a store, in walking order (duplicate spellings merged). */
+export function storeCatalogue(all: StoreProduct[], store: string): (StoreProduct & { keys: string[] })[] {
+  const out = new Map<string, StoreProduct & { keys: string[] }>();
+  for (const p of all.filter((p) => p.store === store).sort((a, b) => a.position - b.position)) {
+    const k = normalizeName(p.name);
+    const prev = out.get(k);
+    if (prev) prev.keys.push(p.normalized_name);
+    else out.set(k, { ...p, keys: [p.normalized_name] });
+  }
+  return [...out.values()];
+}
+
+/**
+ * Order a store's shopping items by the household's walking order.
+ * Items the store has never seen go last, grouped by category.
+ */
+export function sortForStore<T extends { name: string; category: string }>(items: T[], all: StoreProduct[], store: string): { ordered: T[]; unplaced: T[] } {
+  const pos = new Map(storeCatalogue(all, store).map((p, i) => [normalizeName(p.name), i]));
+  const ordered = items.filter((i) => pos.has(normalizeName(i.name))).sort((a, b) => pos.get(normalizeName(a.name))! - pos.get(normalizeName(b.name))!);
+  const unplaced = items.filter((i) => !pos.has(normalizeName(i.name))).sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+  return { ordered, unplaced };
+}
+
+/** Move one entry in a list (drag & drop / arrow buttons). */
+export function move<T>(list: T[], from: number, to: number): T[] {
+  const copy = [...list];
+  const [x] = copy.splice(from, 1);
+  copy.splice(Math.max(0, Math.min(to, copy.length)), 0, x);
+  return copy;
 }

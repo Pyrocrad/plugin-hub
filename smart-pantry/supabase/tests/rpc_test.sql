@@ -81,4 +81,12 @@ select purchase_shopping_item(:'s3', true, 'fridge', null, 'best_before', null, 
 select store = 'Delhaize' as store_ok from inventory_items where id = :'inv' \gset
 \if :store_ok \else \echo 'FAIL store purchase' \quit \endif
 
+-- Store catalogue: tagging adds products; set_store_order reorders.
+select add_shopping_item(:'hid','Bread','bread',1,'pcs','bread',null,null,'Lidl') is not null as x \gset
+select string_agg(normalized_name, ',' order by position) = 'butter,bread' as cat_ok from store_products where store = 'Lidl' \gset
+\if :cat_ok \else \echo 'FAIL catalogue' \quit \endif
+select set_store_order(:'hid', 'Lidl', array['bread','butter']);
+select string_agg(normalized_name, ',' order by position) = 'bread,butter' as order_ok from store_products where store = 'Lidl' \gset
+\if :order_ok \else \echo 'FAIL order' \quit \endif
+
 \echo 'ALL DATABASE TESTS PASSED'
