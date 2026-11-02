@@ -96,13 +96,13 @@ export function restockSuggestions(input: {
     let score = 0;
     if (regularUse && daysLeft! < horizon) {
       quantity = rate * horizon * 1.5 - a.stock; // ~1½ weeks of cover
-      reason = a.stock <= 0 ? `Out of stock · you use it ${a.uses}× a month` : `~${daysLeft} day${daysLeft === 1 ? "" : "s"} left at your usual pace`;
+      reason = a.stock <= 0 ? `Op · jullie gebruiken het ${a.uses}× per maand` : `Nog ~${daysLeft} dag${daysLeft === 1 ? "" : "en"} bij jullie gewone verbruik`;
       score = 10 - daysLeft! + a.uses;
     }
     if (a.recipeHits >= 2 && a.stock < a.recipeQty) {
       const need = a.recipeQty - a.stock;
       if (need > quantity) quantity = need;
-      reason = reason || `Needed for recipes you cook often (${a.recipeHits}×)`;
+      reason = reason || `Nodig voor recepten die jullie vaak koken (${a.recipeHits}×)`;
       score = Math.max(score, 5 + a.recipeHits);
     }
     if (quantity <= 0) continue;

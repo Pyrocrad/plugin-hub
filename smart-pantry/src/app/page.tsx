@@ -10,13 +10,13 @@ import { lowStockSuggestions } from "@/lib/domain/shopping";
 import { restockSuggestions } from "@/lib/domain/restock";
 import { latestRatings } from "@/lib/domain/preferences";
 import { ExpiryBadge, RecipeImage, timeAgo, Avatar } from "@/components/ui";
-import { ItemSheet } from "@/components/ItemSheet";
+import { ItemSheet, REASON_NL } from "@/components/ItemSheet";
 import type { InventoryItem } from "@/lib/domain/types";
 
-const PROMPTS = ["What can I cook tonight?", "Something quick under 30 min", "Use what's about to expire", "Surprise me", "No shopping needed"];
+const PROMPTS = ["Wat kan ik vanavond koken?", "Iets snel onder 30 min", "Gebruik wat bijna vervalt", "Verras me", "Niet winkelen"];
 
 export default function Dashboard() {
-  const { inventory, events, shopping, recipes, cookings, ratings, members, memberName, user } = useHousehold();
+  const { inventory, events, shopping, recipes, cookings, ratings, members, memberName, user, aiEnabled } = useHousehold();
   const router = useRouter();
   const [ask, setAsk] = useState("");
   const [open, setOpen] = useState<InventoryItem | null>(null);
@@ -40,21 +40,21 @@ export default function Dashboard() {
   const wasted = events.filter((e) => (e.reason === "spoiled" || e.reason === "discarded") && e.created_at >= month).length;
   const used = events.filter((e) => (e.reason === "consumed" || e.reason === "cooked") && e.created_at >= month).length;
   const recentActivity = events.filter((e) => ["consumed", "cooked", "purchased", "spoiled"].includes(e.reason)).slice(0, 6);
-  const nameOf = (id: string) => inventory.find((i) => i.id === id)?.name ?? "item";
+  const nameOf = (id: string) => inventory.find((i) => i.id === id)?.name ?? "product";
   const me = members.find((m) => m.id === user?.id);
 
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-sm text-stone-500">{new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</p>
-        <h1 className="h1">Hi {me?.display_name ?? "there"} 👋</h1>
+        <p className="text-sm text-stone-500">{new Date().toLocaleDateString("nl-BE", { weekday: "long", day: "numeric", month: "long" })}</p>
+        <h1 className="h1">Hallo {me?.display_name ?? ""} 👋</h1>
       </header>
 
       <form className="card bg-gradient-to-br from-brand-600 to-emerald-700 p-4 text-white" onSubmit={(e) => { e.preventDefault(); router.push(`/recipes?q=${encodeURIComponent(ask || PROMPTS[0])}`); }}>
-        <div className="mb-2 text-sm font-medium opacity-90">👩‍🍳 Ask your chef</div>
+        <div className="mb-2 text-sm font-medium opacity-90">👩‍🍳 {aiEnabled ? "Vraag het je chef" : "Wat eten we vandaag?"}</div>
         <div className="flex gap-2">
-          <input className="input border-0 text-stone-900" placeholder="What should we cook tonight?" value={ask} onChange={(e) => setAsk(e.target.value)} />
-          <button className="btn shrink-0 bg-white text-brand-700">Ask</button>
+          <input className="input border-0 text-stone-900" placeholder="Wat koken we vanavond?" value={ask} onChange={(e) => setAsk(e.target.value)} />
+          <button className="btn shrink-0 bg-white text-brand-700">{aiEnabled ? "Vraag" : "Toon"}</button>
         </div>
         <div className="mt-2 flex gap-1.5 overflow-x-auto">
           {PROMPTS.slice(1).map((p) => <Link key={p} href={`/recipes?q=${encodeURIComponent(p)}`} className="chip shrink-0 bg-white/15 py-1 text-white hover:bg-white/25">{p}</Link>)}
@@ -72,20 +72,20 @@ export default function Dashboard() {
         <div className="card p-4">
           <div className="text-2xl">♻️</div>
           <div className="mt-1 text-2xl font-semibold">{used + wasted ? Math.round((used / (used + wasted)) * 100) : 100}%</div>
-          <div className="text-xs text-stone-500">used, not wasted (30d)</div>
+          <div className="text-xs text-stone-500">opgebruikt, niet weggegooid (30d)</div>
         </div>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
         <section className="card p-4">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="h2">⏳ Use soon</h2>
-            {urgent.length > 0 && <Link href="/recipes?q=Use%20what%27s%20about%20to%20expire" className="text-sm text-brand-700">Cook with these →</Link>}
+            <h2 className="h2">⏳ Snel opgebruiken</h2>
+            {urgent.length > 0 && <Link href="/recipes?q=Gebruik%20wat%20bijna%20vervalt" className="text-sm text-brand-700">Hiermee koken →</Link>}
           </div>
           {g.expired.some((i) => i.expiry_type === "use_by") && (
-            <p className="mb-2 rounded-xl bg-red-50 p-2 text-xs text-red-800">⚠︎ {g.expired.filter((i) => i.expiry_type === "use_by").map((i) => i.name).join(", ")} passed the use-by date – don&apos;t eat; mark as discarded.</p>
+            <p className="mb-2 rounded-xl bg-red-50 p-2 text-xs text-red-800">⚠︎ {g.expired.filter((i) => i.expiry_type === "use_by").map((i) => i.name).join(", ")} is over de &apos;te gebruiken tot&apos;-datum – niet meer opeten, markeer als weggegooid.</p>
           )}
-          {urgent.length === 0 ? <p className="text-sm text-stone-500">Nothing urgent. 🎉</p> : (
+          {urgent.length === 0 ? <p className="text-sm text-stone-500">Niets dringend. 🎉</p> : (
             <ul className="space-y-1.5">
               {urgent.slice(0, 7).map((i) => (
                 <li key={i.id}><button onClick={() => setOpen(i)} className="flex w-full items-center justify-between text-left text-sm">
@@ -97,13 +97,13 @@ export default function Dashboard() {
         </section>
 
         <section className="card p-4">
-          <div className="mb-2 flex items-center justify-between"><h2 className="h2">🛒 Shopping list</h2><Link href="/shopping" className="text-sm text-brand-700">Open →</Link></div>
-          {openShop.length === 0 ? <p className="text-sm text-stone-500">List is empty.</p> : (
+          <div className="mb-2 flex items-center justify-between"><h2 className="h2">🛒 Boodschappenlijst</h2><Link href="/shopping" className="text-sm text-brand-700">Openen →</Link></div>
+          {openShop.length === 0 ? <p className="text-sm text-stone-500">De lijst is leeg.</p> : (
             <ul className="flex flex-wrap gap-1.5">{openShop.slice(0, 12).map((s) => <li key={s.id} className="chip bg-stone-100 py-1 text-stone-700">{s.name}</li>)}</ul>
           )}
           {(restock.length > 0 || low.length > 0) && (
             <Link href="/shopping" className="mt-3 block rounded-xl bg-violet-50 p-2.5 text-xs text-violet-800">
-              💡 Running low on things you use often: {[...new Set([...restock.map((r) => r.name), ...low.map((i) => i.name)])].slice(0, 5).join(", ")} →
+              💡 Bijna op (gebruiken jullie vaak): {[...new Set([...restock.map((r) => r.name), ...low.map((i) => i.name)])].slice(0, 5).join(", ")} →
             </Link>
           )}
         </section>
@@ -111,12 +111,12 @@ export default function Dashboard() {
 
       {suggestions.length > 0 && (
         <section>
-          <div className="mb-2 flex items-center justify-between"><h2 className="h2">✨ Latest suggestions</h2><Link href="/recipes" className="text-sm text-brand-700">More →</Link></div>
+          <div className="mb-2 flex items-center justify-between"><h2 className="h2">✨ Laatste suggesties</h2><Link href="/recipes" className="text-sm text-brand-700">Meer →</Link></div>
           <div className="grid gap-3 sm:grid-cols-3">
             {suggestions.map((r) => (
               <Link key={r.id} href={`/recipes/${r.id}`} className="card overflow-hidden hover:ring-brand-500">
                 <RecipeImage title={r.title} url={r.image_url} className="h-28" />
-                <div className="p-3"><div className="text-xs uppercase tracking-wide text-brand-700">{r.kind}</div><div className="font-medium">{r.title}</div></div>
+                <div className="p-3"><div className="text-xs uppercase tracking-wide text-brand-700">{({ favourite: "favoriet", practical: "opmaken", discovery: "ontdekking", custom: "voor jou", manual: "eigen recept" } as Record<string, string>)[r.kind ?? ""] ?? r.kind}</div><div className="font-medium">{r.title}</div></div>
               </Link>
             ))}
           </div>
@@ -125,23 +125,23 @@ export default function Dashboard() {
 
       <div className="grid gap-5 md:grid-cols-3">
         <section className="card p-4">
-          <h2 className="h2 mb-2">🍳 Recently cooked</h2>
-          {cookings.length === 0 ? <p className="text-sm text-stone-500">Nothing yet.</p> : (
+          <h2 className="h2 mb-2">🍳 Recent gekookt</h2>
+          {cookings.length === 0 ? <p className="text-sm text-stone-500">Nog niets.</p> : (
             <ul className="space-y-1.5 text-sm">{cookings.slice(0, 5).map((c) => <li key={c.id}><Link href={`/recipes/${c.recipe_id}`} className="hover:underline">{recipeById.get(c.recipe_id)?.title}</Link> <span className="text-stone-400">· {memberName(c.cooked_by)} · {timeAgo(c.cooked_at)}</span></li>)}</ul>
           )}
         </section>
         <section className="card p-4">
-          <h2 className="h2 mb-2">⭐ Top rated</h2>
-          {top.length === 0 ? <p className="text-sm text-stone-500">Rate recipes after cooking to teach your chef.</p> : (
+          <h2 className="h2 mb-2">⭐ Hoogst gescoord</h2>
+          {top.length === 0 ? <p className="text-sm text-stone-500">Geef recepten een score na het koken, zo leert je chef bij.</p> : (
             <ul className="space-y-1.5 text-sm">{top.map(({ r, avg }) => <li key={r.id}><Link href={`/recipes/${r.id}`} className="hover:underline">{r.title}</Link> <span className="text-amber-500">★ {avg.toFixed(1)}</span></li>)}</ul>
           )}
         </section>
         <section className="card p-4">
-          <h2 className="h2 mb-2">🔄 Household activity</h2>
+          <h2 className="h2 mb-2">🔄 Activiteit in huis</h2>
           <ul className="space-y-1.5 text-sm">
             {recentActivity.map((e) => {
               const m = members.find((x) => x.id === e.user_id);
-              return <li key={e.id} className="flex items-center gap-1.5"><Avatar name={m?.display_name ?? "?"} color={m?.avatar_color} /><span className="truncate">{e.reason} {nameOf(e.item_id)}{e.delta ? ` (${Number(e.delta) > 0 ? "+" : ""}${Number(e.delta)} ${e.unit})` : ""}</span><span className="ml-auto shrink-0 text-xs text-stone-400">{timeAgo(e.created_at)}</span></li>;
+              return <li key={e.id} className="flex items-center gap-1.5"><Avatar name={m?.display_name ?? "?"} color={m?.avatar_color} /><span className="truncate">{REASON_NL[e.reason] ?? e.reason}: {nameOf(e.item_id)}{e.delta ? ` (${Number(e.delta) > 0 ? "+" : ""}${Number(e.delta)} ${e.unit})` : ""}</span><span className="ml-auto shrink-0 text-xs text-stone-400">{timeAgo(e.created_at)}</span></li>;
             })}
           </ul>
         </section>

@@ -8,6 +8,7 @@ import { normalizeName } from "@/lib/domain/names";
 import { guessCategory } from "@/lib/domain/shopping";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Empty } from "@/components/ui";
+import { catNL } from "@/lib/domain/types";
 
 // Typical supermarket route, used for the one-tap "sort by aisle type" start.
 const AISLE = ["fruit", "vegetables", "bread", "meat", "fish", "dairy", "eggs", "pasta & rice", "grains", "legumes", "sauces", "oils", "spices", "baking", "snacks", "drinks", "frozen", "other"];
@@ -61,7 +62,7 @@ function StoresInner() {
 
   async function addToList(name: string, category: string) {
     const r = await rpc<any>("add_shopping_item", { p_household: household!.id, p_name: name, p_normalized: normalizeName(name), p_category: category, p_store: store });
-    if (r) { upsertLocal("shopping", r); toast(`${name} added to the ${store} list`); }
+    if (r) { upsertLocal("shopping", r); toast(`${name} op de lijst voor ${store} gezet`); }
   }
   async function addProduct(e: React.FormEvent) {
     e.preventDefault();
@@ -76,28 +77,28 @@ function StoresInner() {
     setStoreProducts(storeProducts.filter((p) => !(p.store === store && keys.includes(p.normalized_name))));
   }
 
-  if (!stores.length) return <Empty icon="🏪" title="No stores yet"><Link href="/settings" className="text-brand-700">Add your stores in Settings →</Link></Empty>;
+  if (!stores.length) return <Empty icon="🏪" title="Nog geen winkels"><Link href="/settings" className="text-brand-700">Voeg je winkels toe bij Instellingen →</Link></Empty>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="h1">Store layout</h1>
-        <Link href={`/shopping?store=${encodeURIComponent(store)}`} className="btn-ghost">🛒 List</Link>
+        <h1 className="h1">Winkelindeling</h1>
+        <Link href={`/shopping?store=${encodeURIComponent(store)}`} className="btn-ghost">🛒 Lijst</Link>
       </div>
       <div className="flex gap-1.5">
         {stores.map((s) => <button key={s} onClick={() => setStore(s)} className={`btn ${store === s ? "bg-stone-900 text-white" : "btn-ghost"}`}>🏪 {s} <span className="opacity-60">{storeCatalogue(storeProducts, s).length}</span></button>)}
       </div>
       <p className="text-sm text-stone-500">
-        Everything you buy at {store}, in the order you walk through the shop. Drag ≡ to reorder; your shopping list for {store} follows this order.
-        Products tagged with {store} are added here automatically.
+        Alles wat jullie bij {store} kopen, in de volgorde waarin je door de winkel loopt. Sleep ≡ om te verplaatsen; je boodschappenlijst voor {store} volgt deze volgorde.
+        Producten met winkel {store} komen hier vanzelf bij.
       </p>
       <div className="flex gap-2">
-        <input className="input" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <button className="btn-ghost shrink-0 text-xs" onClick={() => confirm("Reorder by aisle type (fruit & veg first, frozen last)? You can fine-tune after.") &&
-          save([...order].sort((a, b) => AISLE.indexOf(a.category) - AISLE.indexOf(b.category)))}>Sort by aisle type</button>
+        <input className="input" placeholder="Zoeken…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="btn-ghost shrink-0 text-xs" onClick={() => confirm("Sorteren per soort afdeling (groenten & fruit eerst, diepvries laatst)? Daarna kan je nog fijn afstellen.") &&
+          save([...order].sort((a, b) => AISLE.indexOf(a.category) - AISLE.indexOf(b.category)))}>Sorteer per afdeling</button>
       </div>
 
-      {order.length === 0 ? <Empty icon="🧭" title={`Nothing for ${store} yet`}>Tag products or shopping items with {store}, or add them below.</Empty> : (
+      {order.length === 0 ? <Empty icon="🧭" title={`Nog niets voor ${store}`}>Geef producten of boodschappen de winkel {store}, of voeg ze hieronder toe.</Empty> : (
         <ol className="card divide-y divide-stone-100 select-none" onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
           {filtered.map((p) => {
             const i = shown.indexOf(p);
@@ -105,27 +106,27 @@ function StoresInner() {
             return (
               <li key={p.normalized_name} ref={(el) => { rows.current[i] = el; }} className={`flex items-center gap-2 px-2 py-2 ${dragging ? "bg-brand-50 shadow-inner" : ""}`}>
                 <span className="w-6 text-right text-xs tabular-nums text-stone-400">{i + 1}</span>
-                <button aria-label={`Drag ${p.name}`} className="cursor-grab touch-none px-2 py-1 text-xl text-stone-400 active:cursor-grabbing" onPointerDown={(e) => onPointerDown(e, i)} disabled={!!q}>≡</button>
+                <button aria-label={`Sleep ${p.name}`} className="cursor-grab touch-none px-2 py-1 text-xl text-stone-400 active:cursor-grabbing" onPointerDown={(e) => onPointerDown(e, i)} disabled={!!q}>≡</button>
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{p.name}</div>
-                  <div className="text-xs text-stone-400">{p.category}</div>
+                  <div className="text-xs text-stone-400">{catNL(p.category)}</div>
                 </div>
                 {onList.has(normalizeName(p.name))
-                  ? <span className="chip bg-brand-50 text-brand-700">on list</span>
-                  : <button className="chip bg-stone-100 py-1 text-stone-600 hover:bg-stone-200" onClick={() => addToList(p.name, p.category)}>＋ list</button>}
+                  ? <span className="chip bg-brand-50 text-brand-700">op lijst</span>
+                  : <button className="chip bg-stone-100 py-1 text-stone-600 hover:bg-stone-200" onClick={() => addToList(p.name, p.category)}>＋ lijst</button>}
                 <div className="flex flex-col">
-                  <button aria-label="Move up" className="px-1 text-xs text-stone-400 disabled:opacity-20" disabled={i === 0 || !!q} onClick={() => save(move(order, i, i - 1))}>▲</button>
-                  <button aria-label="Move down" className="px-1 text-xs text-stone-400 disabled:opacity-20" disabled={i === order.length - 1 || !!q} onClick={() => save(move(order, i, i + 1))}>▼</button>
+                  <button aria-label="Omhoog" className="px-1 text-xs text-stone-400 disabled:opacity-20" disabled={i === 0 || !!q} onClick={() => save(move(order, i, i - 1))}>▲</button>
+                  <button aria-label="Omlaag" className="px-1 text-xs text-stone-400 disabled:opacity-20" disabled={i === order.length - 1 || !!q} onClick={() => save(move(order, i, i + 1))}>▼</button>
                 </div>
-                <button aria-label={`Remove ${p.name} from ${store}`} className="px-1 text-stone-300 hover:text-red-500" onClick={() => remove(p.keys)}>✕</button>
+                <button aria-label={`${p.name} verwijderen uit ${store}`} className="px-1 text-stone-300 hover:text-red-500" onClick={() => remove(p.keys)}>✕</button>
               </li>
             );
           })}
         </ol>
       )}
       <form onSubmit={addProduct} className="flex gap-2">
-        <input className="input" placeholder={`Add a product you buy at ${store}`} value={newName} onChange={(e) => setNewName(e.target.value)} />
-        <button className="btn-primary shrink-0" disabled={!newName.trim()}>Add</button>
+        <input className="input" placeholder={`Product dat je bij ${store} koopt`} value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <button className="btn-primary shrink-0" disabled={!newName.trim()}>Voeg toe</button>
       </form>
     </div>
   );

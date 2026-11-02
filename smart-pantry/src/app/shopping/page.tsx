@@ -7,7 +7,7 @@ import { groupByCategory, guessCategory, lowStockSuggestions } from "@/lib/domai
 import { normalizeName } from "@/lib/domain/names";
 import { normalizeUnit, formatQuantity } from "@/lib/domain/units";
 import { parseQuickAdd } from "@/lib/domain/parse";
-import { LOCATIONS, type Location, type ShoppingItem } from "@/lib/domain/types";
+import { LOCATIONS, catNL, type Location, type ShoppingItem } from "@/lib/domain/types";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Empty, Sheet, StoreChip, StorePicker } from "@/components/ui";
 import { preferredStore, sortForStore } from "@/lib/domain/stores";
@@ -36,7 +36,7 @@ function ShoppingInner() {
   const suggestions = [
     ...smart.map((x) => ({ key: x.normalized_name, name: x.name, quantity: x.quantity as number | null, unit: x.unit as string | null, reason: x.reason })),
     ...low.filter((i) => !smart.some((x) => x.normalized_name === normalizeName(i.name)))
-      .map((i) => ({ key: normalizeName(i.name), name: i.name, quantity: null, unit: null, reason: `Below your alert level (${formatQuantity(i.quantity, i.unit)} left)` })),
+      .map((i) => ({ key: normalizeName(i.name), name: i.name, quantity: null, unit: null, reason: `Onder je waarschuwingsniveau (nog ${formatQuantity(i.quantity, i.unit)})` })),
   ]
     .map((x) => ({ ...x, store: preferredStore(x.name, inventory, shopping) }))
     .filter((x) => tab === "all" || tab === "none" || !x.store || x.store === tab)
@@ -68,16 +68,16 @@ function ShoppingInner() {
   const row = (s: ShoppingItem, n?: number) => (
 <li key={s.id} className="flex items-center gap-3 px-3 py-2.5">
                   {n != null && <span className="w-5 text-right text-xs tabular-nums text-stone-400">{n}</span>}
-                  <button className="h-6 w-6 shrink-0 rounded-full border-2 border-stone-300 hover:border-brand-500" onClick={() => setBuying(s)} aria-label={`Bought ${s.name}`} />
+                  <button className="h-6 w-6 shrink-0 rounded-full border-2 border-stone-300 hover:border-brand-500" onClick={() => setBuying(s)} aria-label={`${s.name} gekocht`} />
                   <div className="min-w-0 flex-1">
                     <div className="font-medium">{s.name} {s.quantity != null && <span className="font-normal text-stone-500">· {formatQuantity(s.quantity, s.unit ?? "pcs")}</span>}</div>
                     <div className="truncate text-xs text-stone-400">
-                      {memberName(s.added_by)}{s.recipe_id && ` · for ${recipes.find((r) => r.id === s.recipe_id)?.title ?? "a recipe"}`}{s.notes && ` · ${s.notes}`}
+                      {memberName(s.added_by)}{s.recipe_id && ` · voor ${recipes.find((r) => r.id === s.recipe_id)?.title ?? "een recept"}`}{s.notes && ` · ${s.notes}`}
                     </div>
                   </div>
                   <StoreCycle item={s} stores={stores} />
                   <NoteButton item={s} />
-                  <button className="text-stone-300 hover:text-red-500" onClick={() => remove(s)} aria-label="Remove">✕</button>
+                  <button className="text-stone-300 hover:text-red-500" onClick={() => remove(s)} aria-label="Verwijderen">✕</button>
                 </li>
   );
   const inStore = tab !== "all" && tab !== "none";
@@ -86,18 +86,18 @@ function ShoppingInner() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="h1">Shopping list</h1>
-        {stores.length > 0 && <Link href={`/stores${inStore ? `?s=${encodeURIComponent(tab)}` : ""}`} className="btn-ghost text-xs">🧭 Store layout</Link>}
+        <h1 className="h1">Boodschappen</h1>
+        {stores.length > 0 && <Link href={`/stores${inStore ? `?s=${encodeURIComponent(tab)}` : ""}`} className="btn-ghost text-xs">🧭 Winkelindeling</Link>}
       </div>
       <form onSubmit={submit} className="flex gap-2">
-        <input className="input" placeholder="Add items: 2 l milk, bread, 6 eggs" value={text} onChange={(e) => setText(e.target.value)} />
-        <button className="btn-primary shrink-0" disabled={!text.trim()}>Add</button>
+        <input className="input" placeholder="Toevoegen: 2 l melk, brood, 6 eieren" value={text} onChange={(e) => setText(e.target.value)} />
+        <button className="btn-primary shrink-0" disabled={!text.trim()}>Voeg toe</button>
       </form>
-      {text.trim() && <StorePicker stores={stores} value={addStore} onChange={setAddStore} label="Get it at" />}
+      {text.trim() && <StorePicker stores={stores} value={addStore} onChange={setAddStore} label="Kopen bij" />}
 
       {stores.length > 0 && (
         <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {[["all", "All"], ...stores.map((x) => [x, `🏪 ${x}`]), ["none", "No store"]].map(([id, label]) => {
+          {[["all", "Alles"], ...stores.map((x) => [x, `🏪 ${x}`]), ["none", "Geen winkel"]].map(([id, label]) => {
             const n = id === "all" ? allOpen.length : allOpen.filter((s) => (id === "none" ? !s.store : s.store === id)).length;
             return <button key={id} onClick={() => setTab(id)} className={`btn shrink-0 ${tab === id ? "bg-stone-900 text-white" : "btn-ghost"}`}>{label} <span className="opacity-60">{n}</span></button>;
           })}
@@ -108,10 +108,10 @@ function ShoppingInner() {
         <section className="card overflow-hidden">
           <div className="flex items-center justify-between bg-gradient-to-r from-violet-50 to-brand-50 px-4 py-3">
             <div>
-              <h2 className="h2">💡 Suggested for you</h2>
-              <p className="text-xs text-stone-500">Based on what you use often and your regular recipes</p>
+              <h2 className="h2">💡 Voorgesteld</h2>
+              <p className="text-xs text-stone-500">Op basis van wat jullie vaak gebruiken en jullie vaste recepten</p>
             </div>
-            <button className="btn-ghost text-xs" onClick={async () => { for (const x of suggestions) await add(x.name, x.quantity, x.unit, x.store); }}>Add all</button>
+            <button className="btn-ghost text-xs" onClick={async () => { for (const x of suggestions) await add(x.name, x.quantity, x.unit, x.store); }}>Alles toevoegen</button>
           </div>
           <ul className="divide-y divide-stone-100">
             {suggestions.map((x) => (
@@ -120,7 +120,7 @@ function ShoppingInner() {
                   <div className="font-medium"><span className="capitalize">{x.name}</span>{x.quantity != null && <span className="font-normal text-stone-500"> · {formatQuantity(x.quantity, x.unit ?? "pcs")}</span>}</div>
                   <div className="flex items-center gap-1.5"><span className="truncate text-xs text-violet-700">{x.reason}</span><StoreChip store={x.store} stores={stores} /></div>
                 </div>
-                <button className="btn bg-brand-600 px-3 py-1.5 text-xs text-white" onClick={() => add(x.name, x.quantity, x.unit, x.store)}>＋ Add</button>
+                <button className="btn bg-brand-600 px-3 py-1.5 text-xs text-white" onClick={() => add(x.name, x.quantity, x.unit, x.store)}>＋ Voeg toe</button>
               </li>
             ))}
           </ul>
@@ -131,21 +131,21 @@ function ShoppingInner() {
         <>
           {walk.ordered.length > 0 && (
             <section>
-              <h2 className="mb-1 px-1 text-sm font-medium text-stone-500">🚶 In {tab} walking order</h2>
+              <h2 className="mb-1 px-1 text-sm font-medium text-stone-500">🚶 In wandelvolgorde van {tab}</h2>
               <ul className="card divide-y divide-stone-100">{walk.ordered.map((s, i) => row(s, i + 1))}</ul>
             </section>
           )}
           {walk.unplaced.length > 0 && (
             <section>
-              <h2 className="mb-1 px-1 text-sm font-medium text-stone-500">Not in your {tab} layout yet <Link href={`/stores?s=${encodeURIComponent(tab)}`} className="text-brand-700">· arrange →</Link></h2>
+              <h2 className="mb-1 px-1 text-sm font-medium text-stone-500">Nog niet in je indeling van {tab} <Link href={`/stores?s=${encodeURIComponent(tab)}`} className="text-brand-700">· plaatsen →</Link></h2>
               <ul className="card divide-y divide-stone-100">{walk.unplaced.map((s) => row(s))}</ul>
             </section>
           )}
         </>
-      ) : open.length === 0 ? <Empty icon="🛒" title={tab === "all" ? "All done!" : "Nothing for this store"}>Missing recipe ingredients can be added from any recipe.</Empty> : (
+      ) : open.length === 0 ? <Empty icon="🛒" title={tab === "all" ? "Alles gekocht!" : "Niets voor deze winkel"}>Ontbrekende ingrediënten kan je toevoegen vanuit elk recept.</Empty> : (
         groupByCategory(open).map(([cat, items]) => (
           <section key={cat}>
-            <h2 className="mb-1 px-1 text-sm font-medium capitalize text-stone-500">{cat}</h2>
+            <h2 className="mb-1 px-1 text-sm font-medium capitalize text-stone-500">{catNL(cat)}</h2>
             <ul className="card divide-y divide-stone-100">
               {items.map((s) => row(s))}
             </ul>
@@ -155,7 +155,7 @@ function ShoppingInner() {
 
       {done.length > 0 && (
         <section>
-          <h2 className="mb-1 px-1 text-sm font-medium text-stone-400">Recently bought</h2>
+          <h2 className="mb-1 px-1 text-sm font-medium text-stone-400">Recent gekocht</h2>
           <ul className="space-y-1 px-1 text-sm text-stone-400">{done.map((s) => <li key={s.id}><span className="line-through">{s.name}</span> · {memberName(s.purchased_by)}{s.store && ` · ${s.store}`}</li>)}</ul>
         </section>
       )}
@@ -172,10 +172,10 @@ function StoreCycle({ item, stores }: { item: ShoppingItem; stores: string[] }) 
   const order = [...stores, null];
   const next = order[(order.indexOf(item.store) + 1) % order.length];
   return (
-    <button title="Change store" onClick={async () => {
+    <button title="Winkel wijzigen" onClick={async () => {
       const { data } = await supabaseBrowser().from("shopping_items").update({ store: next }).eq("id", item.id).select().single();
       if (data) upsertLocal("shopping", data);
-    }}>{item.store ? <StoreChip store={item.store} stores={stores} /> : <span className="chip bg-white text-stone-400 ring-1 ring-dashed ring-stone-300">＋ store</span>}</button>
+    }}>{item.store ? <StoreChip store={item.store} stores={stores} /> : <span className="chip bg-white text-stone-400 ring-1 ring-dashed ring-stone-300">＋ winkel</span>}</button>
   );
 }
 
@@ -183,7 +183,7 @@ function NoteButton({ item }: { item: ShoppingItem }) {
   const { upsertLocal } = useHousehold();
   return (
     <button className="text-xs text-stone-400 hover:text-stone-700" onClick={async () => {
-      const notes = prompt("Note for this item", item.notes ?? "");
+      const notes = prompt("Notitie bij dit product", item.notes ?? "");
       if (notes === null) return;
       const { data } = await supabaseBrowser().from("shopping_items").update({ notes: notes || null }).eq("id", item.id).select().single();
       if (data) upsertLocal("shopping", data);
@@ -201,24 +201,24 @@ function BuySheet({ item, onClose, onQuick }: { item: ShoppingItem | null; onClo
   const [type, setType] = useState<"use_by" | "best_before">("best_before");
   if (!item) return null;
   return (
-    <Sheet open onClose={onClose} title={`Bought ${item.name}`}>
+    <Sheet open onClose={onClose} title={`${item.name} gekocht`}>
       <div className="space-y-3">
         <div className="grid grid-cols-4 gap-2">
           {LOCATIONS.map((l) => <button key={l.id} onClick={() => setLoc(l.id)} className={`btn ${loc === l.id ? "bg-brand-600 text-white" : "btn-ghost"}`}>{l.icon}</button>)}
         </div>
         <div className="grid grid-cols-3 gap-2">
           <input className="input" inputMode="decimal" placeholder={`${item.quantity ?? 1} ${item.unit ?? "pcs"}`} value={qty} onChange={(e) => setQty(e.target.value)} />
-          <input className="input" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} aria-label="Expiry" />
-          <select className="input" value={type} onChange={(e) => setType(e.target.value as typeof type)}><option value="best_before">Best-before</option><option value="use_by">Use-by</option></select>
+          <input className="input" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} aria-label="Vervaldatum" />
+          <select className="input" value={type} onChange={(e) => setType(e.target.value as typeof type)}><option value="best_before">Ten minste houdbaar</option><option value="use_by">Te gebruiken tot</option></select>
         </div>
-        <StorePicker stores={household?.stores ?? []} value={store} onChange={setStore} label="Bought at" />
+        <StorePicker stores={household?.stores ?? []} value={store} onChange={setStore} label="Gekocht bij" />
         <button className="btn-primary w-full py-3" onClick={async () => {
           const r = await rpc("purchase_shopping_item", { p_item: item.id, p_add_to_inventory: true, p_location: loc, p_expiry: expiry || null, p_expiry_type: type, p_quantity: qty ? Number(qty) : null, p_store: store });
           await reload();
-          toast(r ? `${item.name} added to ${loc}` : `${item.name} was already ticked off`);
+          toast(r ? `${item.name} in ${LOCATIONS.find((l) => l.id === loc)?.label.toLowerCase()} gezet` : `${item.name} was al afgevinkt`);
           onClose();
-        }}>Add to inventory</button>
-        <button className="btn-ghost w-full" onClick={() => { onQuick(item); onClose(); }}>Just tick off</button>
+        }}>In voorraad zetten</button>
+        <button className="btn-ghost w-full" onClick={() => { onQuick(item); onClose(); }}>Enkel afvinken</button>
       </div>
     </Sheet>
   );

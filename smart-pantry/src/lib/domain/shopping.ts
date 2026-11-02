@@ -39,22 +39,27 @@ export function groupByCategory<T extends { category: string }>(items: T[]): [st
 }
 
 const CATEGORY_WORDS: [string, string[]][] = [
-  ["meat", ["chicken", "beef", "pork", "lamb", "bacon", "sausage", "mince", "ham", "turkey"]],
-  ["fish", ["salmon", "tuna", "cod", "shrimp", "prawn", "fish", "mussel"]],
-  ["dairy", ["milk", "cream", "cheese", "yoghurt", "yogurt", "butter", "parmesan", "mozzarella", "feta"]],
-  ["eggs", ["egg"]],
-  ["vegetables", ["onion", "garlic", "carrot", "broccoli", "spinach", "tomato", "pepper", "potato", "zucchini", "lettuce", "mushroom", "leek", "cabbage", "cucumber", "eggplant"]],
-  ["fruit", ["apple", "banana", "lemon", "lime", "orange", "berry", "avocado", "pear", "mango"]],
-  ["pasta & rice", ["pasta", "rice", "noodle", "spaghetti", "penne", "couscous"]],
-  ["grains", ["flour", "oat", "quinoa", "bulgur"]],
-  ["bread", ["bread", "tortilla", "wrap", "pita"]],
-  ["legumes", ["bean", "lentil", "chickpea"]],
-  ["spices", ["salt", "cumin", "paprika", "oregano", "thyme", "basil", "cinnamon", "chili", "curry"]],
-  ["sauces", ["sauce", "ketchup", "mayo", "mustard", "soy", "stock", "broth", "vinegar", "paste"]],
-  ["oils", ["oil"]],
+  ["fish", ["salmon", "tuna", "cod", "shrimp", "prawn", "fish", "mussel", "zalm", "tonijn", "kabeljauw", "garnal", "scampi", "vis", "mossel"]],
+  ["meat", ["chicken", "beef", "pork", "lamb", "bacon", "sausage", "mince", "ham", "turkey", "kip", "rund", "varken", "lam", "spek", "worst", "gehakt", "kalkoen", "biefstuk", "steak", "vlees"]],
+  ["dairy", ["milk", "cream", "cheese", "yoghurt", "yogurt", "butter", "parmesan", "mozzarella", "feta", "melk", "room", "kaas", "boter", "platte kaas", "pudding"]],
+  ["eggs", ["egg", "ei"]],
+  ["vegetables", ["onion", "garlic", "carrot", "broccoli", "spinach", "tomato", "pepper", "potato", "zucchini", "lettuce", "mushroom", "leek", "cabbage", "cucumber", "eggplant",
+    "ui", "look", "wortel", "spinazie", "tomat", "paprika", "aardappel", "courgette", "sla", "champignon", "prei", "kool", "komkommer", "aubergine", "witloof", "groente"]],
+  ["fruit", ["apple", "banana", "lemon", "lime", "orange", "berry", "avocado", "pear", "mango", "appel", "banan", "citroen", "limoen", "sinaasappel", "bes", "peer", "aardbei", "druif"]],
+  ["pasta & rice", ["pasta", "rice", "noodle", "spaghetti", "penne", "couscous", "rijst", "noedel", "macaroni"]],
+  ["grains", ["flour", "oat", "quinoa", "bulgur", "bloem", "haver", "muesli", "cornflakes"]],
+  ["bread", ["bread", "tortilla", "wrap", "pita", "brood", "pistolet", "stokbrood", "croissant"]],
+  ["legumes", ["bean", "lentil", "chickpea", "bonen", "boon", "linzen", "kikkererwt"]],
+  ["spices", ["salt", "cumin", "paprika", "oregano", "thyme", "basil", "cinnamon", "chili", "curry", "zout", "peper", "komijn", "tijm", "basilicum", "kaneel"]],
+  ["sauces", ["sauce", "ketchup", "mayo", "mustard", "soy", "stock", "broth", "vinegar", "paste", "saus", "mosterd", "soja", "bouillon", "azijn", "pesto"]],
+  ["oils", ["oil", "olie"]],
+  ["drinks", ["water", "juice", "coffee", "tea", "beer", "wine", "sap", "koffie", "thee", "bier", "wijn", "frisdrank", "cola"]],
 ];
 export function guessCategory(name: string): string {
   const n = normalizeName(name);
-  for (const [cat, words] of CATEGORY_WORDS) if (words.some((w) => n.includes(w))) return cat;
+  const tokens = n.split(/[\s-]+/);
+  // Short words ("ui", "ei", "sap") must start or end a word (Dutch compounds), so "fruit" is no onion.
+  const hit = (w: string) => (w.length <= 3 ? tokens.some((t) => t === w || t.startsWith(w) || t.endsWith(w)) : n.includes(w));
+  for (const [cat, words] of CATEGORY_WORDS) if (words.some(hit)) return cat;
   return "other";
 }

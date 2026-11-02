@@ -25,13 +25,13 @@ export default function SettingsPage() {
   async function saveProfile() {
     const { error } = await supabaseBrowser().from("profiles").update({ display_name: name, diet: list(diet), allergies: list(allergies), avatar_color: color }).eq("id", user!.id);
     if (error) return toast(error.message, "error");
-    toast("Profile saved");
+    toast("Profiel bewaard");
     reload();
   }
   async function saveHousehold() {
     const { error } = await supabaseBrowser().from("households").update({ name: hhName, currency, stores }).eq("id", household!.id);
     if (error) return toast(error.message, "error");
-    toast("Household saved");
+    toast("Huishouden bewaard");
     reload();
   }
   async function makeInvite() {
@@ -42,66 +42,66 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="h1">Settings</h1>
+      <h1 className="h1">Instellingen</h1>
       <nav className="grid grid-cols-3 gap-2 md:hidden">
-        <Link href="/history" className="card p-3 text-sm">📖 History</Link>
-        <Link href="/preferences" className="card p-3 text-sm">❤️ Preferences</Link>
-        <Link href="/stores" className="card p-3 text-sm">🧭 Store layout</Link>
+        <Link href="/history" className="card p-3 text-sm">📖 Geschiedenis</Link>
+        <Link href="/preferences" className="card p-3 text-sm">❤️ Voorkeuren</Link>
+        <Link href="/stores" className="card p-3 text-sm">🧭 Winkels</Link>
       </nav>
 
       <section className="card space-y-3 p-4">
-        <h2 className="h2">My profile</h2>
-        <div><label className="label">Display name</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div><label className="label">Diet (comma separated, e.g. vegetarian, low-carb)</label><input className="input" value={diet} onChange={(e) => setDiet(e.target.value)} /></div>
-        <div><label className="label">Allergies – the chef will never use these</label><input className="input" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="e.g. peanuts, shellfish" /></div>
+        <h2 className="h2">Mijn profiel</h2>
+        <div><label className="label">Naam</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div><label className="label">Dieet (gescheiden door komma's, bv. vegetarisch, koolhydraatarm)</label><input className="input" value={diet} onChange={(e) => setDiet(e.target.value)} /></div>
+        <div><label className="label">Allergieën – de chef gebruikt deze nooit</label><input className="input" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="bv. pinda's, schaaldieren" /></div>
         <div className="flex gap-2">{COLORS.map((c) => <button key={c} onClick={() => setColor(c)} className={`h-7 w-7 rounded-full ${color === c ? "ring-2 ring-stone-900 ring-offset-2" : ""}`} style={{ background: c }} aria-label={c} />)}</div>
-        <button className="btn-primary" onClick={saveProfile}>Save profile</button>
+        <button className="btn-primary" onClick={saveProfile}>Profiel bewaren</button>
       </section>
 
       <section className="card space-y-3 p-4">
-        <h2 className="h2">Household</h2>
+        <h2 className="h2">Huishouden</h2>
         <div className="grid grid-cols-3 gap-2">
           <input className="input col-span-2" value={hhName} onChange={(e) => setHhName(e.target.value)} />
           <input className="input" value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase().slice(0, 3))} />
         </div>
         <div>
-          <div className="label">Our stores – tag products and split the shopping list per store</div>
+          <div className="label">Onze winkels – geef producten een winkel en splits de boodschappenlijst per winkel</div>
           <div className="flex flex-wrap gap-2">
             {stores.map((st) => (
               <span key={st} className="chip gap-1 bg-stone-100 py-1 text-stone-700">🏪 {st}
-                <button aria-label={`Remove ${st}`} className="text-stone-400 hover:text-red-500" onClick={() => setStores(stores.filter((x) => x !== st))}>✕</button>
+                <button aria-label={`${st} verwijderen`} className="text-stone-400 hover:text-red-500" onClick={() => setStores(stores.filter((x) => x !== st))}>✕</button>
               </span>
             ))}
           </div>
           <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); const v = newStore.trim(); if (v && !stores.includes(v)) setStores([...stores, v]); setNewStore(""); }}>
-            <input className="input" placeholder="e.g. Colruyt" value={newStore} onChange={(e) => setNewStore(e.target.value)} />
-            <button className="btn-ghost shrink-0">Add store</button>
+            <input className="input" placeholder="bv. Colruyt" value={newStore} onChange={(e) => setNewStore(e.target.value)} />
+            <button className="btn-ghost shrink-0">Winkel toevoegen</button>
           </form>
         </div>
-        <button className="btn-primary" onClick={saveHousehold}>Save household</button>
+        <button className="btn-primary" onClick={saveHousehold}>Huishouden bewaren</button>
         <div>
-          <div className="label">Members</div>
+          <div className="label">Leden</div>
           <ul className="flex flex-wrap gap-2">{members.map((m) => <li key={m.id} className="chip gap-1.5 bg-stone-100 py-1 text-stone-700"><span className="h-2.5 w-2.5 rounded-full" style={{ background: m.avatar_color }} />{m.display_name}</li>)}</ul>
         </div>
         <div className="rounded-2xl bg-brand-50 p-3">
-          <div className="text-sm font-medium text-brand-900">Invite your partner</div>
+          <div className="text-sm font-medium text-brand-900">Nodig je partner uit</div>
           {invite ? (
             <div className="mt-2 space-y-2">
               <div className="font-mono text-2xl tracking-widest">{invite}</div>
-              <button className="btn-primary" onClick={() => (navigator.share ? navigator.share({ title: "Join our kitchen", url: link }) : navigator.clipboard.writeText(link).then(() => toast("Link copied")))}>Share invite link</button>
-              <p className="text-xs text-brand-800">Valid for 7 days, single use.</p>
+              <button className="btn-primary" onClick={() => (navigator.share ? navigator.share({ title: "Kom in onze keuken", url: link }) : navigator.clipboard.writeText(link).then(() => toast("Link gekopieerd")))}>Uitnodiging delen</button>
+              <p className="text-xs text-brand-800">7 dagen geldig, één keer te gebruiken.</p>
             </div>
-          ) : <button className="btn-primary mt-2" onClick={makeInvite}>Create invite code</button>}
+          ) : <button className="btn-primary mt-2" onClick={makeInvite}>Uitnodigingscode maken</button>}
         </div>
       </section>
 
       <section className="card space-y-2 p-4 text-sm text-stone-600">
-        <h2 className="h2 text-stone-900">About your data</h2>
-        <p>Your inventory, recipes and ratings live in your household database. The AI only receives a compact summary (current stock, learned tastes, recent meals) when you ask for recipes or scan a photo.</p>
-        <p>Expiry dates are guidance. Use-by dates are about safety; best-before dates are about quality. Always check food before eating it.</p>
+        <h2 className="h2 text-stone-900">Over je gegevens</h2>
+        <p>Jullie voorraad, recepten en scores staan in jullie eigen databank. De AI krijgt enkel een korte samenvatting (huidige voorraad, geleerde smaken, recente maaltijden) als je om recepten vraagt of een foto scant.</p>
+        <p>Vervaldata zijn een richtlijn. “Te gebruiken tot” gaat over veiligheid, “ten minste houdbaar tot” over kwaliteit. Controleer eten altijd voor je het opeet.</p>
       </section>
 
-      <button className="btn-danger w-full" onClick={async () => { await supabaseBrowser().auth.signOut(); router.replace("/login"); }}>Sign out</button>
+      <button className="btn-danger w-full" onClick={async () => { await supabaseBrowser().auth.signOut(); router.replace("/login"); }}>Afmelden</button>
     </div>
   );
 }

@@ -23,7 +23,7 @@ function LoginInner() {
       : await sb.auth.signUp({ email, password, options: { data: { display_name: name }, emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(next)}` } });
     setBusy(false);
     if (res.error) return setMsg(res.error.message);
-    if (mode === "up" && !res.data.session) return setMsg("Check your inbox to confirm your email, then sign in.");
+    if (mode === "up" && !res.data.session) return setMsg("Bevestig je e-mailadres via de mail in je inbox en meld je daarna aan.");
     router.replace(next);
     router.refresh();
   }
@@ -34,15 +34,15 @@ function LoginInner() {
         <div className="text-center">
           <div className="text-4xl">🥕</div>
           <h1 className="h1 mt-2">Smart Pantry</h1>
-          <p className="text-sm text-stone-500">A personal chef that knows your kitchen.</p>
+          <p className="text-sm text-stone-500">Een persoonlijke chef die je keuken kent.</p>
         </div>
-        {mode === "up" && <div><label className="label">Your name</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} required /></div>}
-        <div><label className="label">Email</label><input className="input" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
-        <div><label className="label">Password</label><input className="input" type="password" minLength={8} autoComplete={mode === "in" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
+        {mode === "up" && <div><label className="label">Je naam</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} required /></div>}
+        <div><label className="label">E-mail</label><input className="input" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+        <div><label className="label">Wachtwoord</label><input className="input" type="password" minLength={8} autoComplete={mode === "in" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
         {msg && <p className="rounded-xl bg-amber-50 p-2 text-sm text-amber-800">{msg}</p>}
-        <button className="btn-primary w-full" disabled={busy}>{busy ? "…" : mode === "in" ? "Sign in" : "Create account"}</button>
+        <button className="btn-primary w-full" disabled={busy}>{busy ? "…" : mode === "in" ? "Aanmelden" : "Account maken"}</button>
         <button type="button" className="w-full text-sm text-brand-700" onClick={() => setMode(mode === "in" ? "up" : "in")}>
-          {mode === "in" ? "New here? Create an account" : "Already have an account? Sign in"}
+          {mode === "in" ? "Nieuw? Maak een account" : "Al een account? Meld je aan"}
         </button>
       </form>
     </div>

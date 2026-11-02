@@ -35,44 +35,44 @@ export function CookSheet({ recipe, open, onClose }: { recipe: Recipe; open: boo
     setBusy(false);
     if (!id) return;
     await reload();
-    toast(`Inventory updated (${deductions.length} item${deductions.length === 1 ? "" : "s"})`);
+    toast(`Voorraad bijgewerkt (${deductions.length} product${deductions.length === 1 ? "" : "en"})`);
     setCookingId(id);
     setStep("rate");
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title={step === "confirm" ? "I cooked this" : "How was it?"}>
+    <Sheet open={open} onClose={onClose} title={step === "confirm" ? "Ik heb dit gekookt" : "Hoe was het?"}>
       {step === "confirm" ? (
         <div className="space-y-4">
-          <label className="flex items-center justify-between text-sm">Servings cooked
+          <label className="flex items-center justify-between text-sm">Aantal porties
             <input className="input w-20" inputMode="numeric" value={servings} onChange={(e) => setServings(Math.max(1, Number(e.target.value) || 1))} />
           </label>
           <div>
-            <div className="label">Deduct from inventory – adjust if you used more or less</div>
-            {planned.length === 0 ? <p className="text-sm text-stone-500">No matching stock to deduct.</p> : (
+            <div className="label">Van de voorraad aftrekken – pas aan als je meer of minder gebruikte</div>
+            {planned.length === 0 ? <p className="text-sm text-stone-500">Niets in voorraad om af te trekken.</p> : (
               <ul className="divide-y divide-stone-100 rounded-2xl border border-stone-200">
                 {planned.map((d) => {
                   const key = d.item_id + d.ingredient;
                   const stock = inventory.find((i) => i.id === d.item_id);
                   return (
                     <li key={key} className={`flex items-center gap-2 p-2.5 text-sm ${skip[key] ? "opacity-40" : ""}`}>
-                      <input type="checkbox" checked={!skip[key]} onChange={(e) => setSkip({ ...skip, [key]: !e.target.checked })} aria-label="Deduct" />
+                      <input type="checkbox" checked={!skip[key]} onChange={(e) => setSkip({ ...skip, [key]: !e.target.checked })} aria-label="Aftrekken" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{d.item_name}</div>
-                        <div className="text-xs text-stone-500">in stock {stock ? formatQuantity(stock.quantity, stock.unit) : "?"}</div>
+                        <div className="text-xs text-stone-500">in voorraad {stock ? formatQuantity(stock.quantity, stock.unit) : "?"}</div>
                       </div>
                       <input className="input w-20 py-1 text-right" inputMode="decimal" value={amounts[key] ?? String(d.amount)} onChange={(e) => setAmounts({ ...amounts, [key]: e.target.value })} disabled={skip[key]} />
-                      <span className="w-8 text-xs text-stone-500">{d.unit}</span>
+                      <span className="w-8 text-xs text-stone-500">{d.unit === "pcs" ? "st." : d.unit}</span>
                     </li>
                   );
                 })}
               </ul>
             )}
-            {matches.some((m) => m.status === "check") && <p className="mt-2 text-xs text-amber-700">Some ingredients are stored in a different unit ({matches.filter((m) => m.status === "check").map((m) => m.ingredient.name).join(", ")}). Adjust those from the inventory if needed.</p>}
+            {matches.some((m) => m.status === "check") && <p className="mt-2 text-xs text-amber-700">Sommige ingrediënten staan in een andere eenheid in de voorraad ({matches.filter((m) => m.status === "check").map((m) => m.ingredient.name).join(", ")}). Pas die indien nodig aan in de voorraad.</p>}
           </div>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={exact} onChange={(e) => setExact(e.target.checked)} /> I followed the recipe exactly</label>
-          {!exact && <textarea className="input" placeholder="What did you change?" value={mods} onChange={(e) => setMods(e.target.value)} />}
-          <button className="btn-primary w-full py-3" disabled={busy} onClick={confirm}>{busy ? "Saving…" : "Confirm & update inventory"}</button>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={exact} onChange={(e) => setExact(e.target.checked)} /> Ik heb het recept exact gevolgd</label>
+          {!exact && <textarea className="input" placeholder="Wat heb je aangepast?" value={mods} onChange={(e) => setMods(e.target.value)} />}
+          <button className="btn-primary w-full py-3" disabled={busy} onClick={confirm}>{busy ? "Bewaren…" : "Bevestigen & voorraad bijwerken"}</button>
         </div>
       ) : (
         <RateForm cookingId={cookingId!} recipeId={recipe.id} onDone={onClose} />
@@ -91,16 +91,16 @@ export function RateForm({ cookingId, recipeId, onDone, initial }: { cookingId: 
       .select().single();
     if (error) return toast(error.message, "error");
     upsertLocal("ratings", data);
-    toast("Thanks – your chef just learned something");
+    toast("Bedankt – je chef heeft iets bijgeleerd");
     onDone();
   }
   return (
     <div className="space-y-4">
       <div className="flex justify-center"><Stars value={rating} onChange={setRating} size="text-4xl" /></div>
-      <textarea className="input" placeholder="Any comments? (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
+      <textarea className="input" placeholder="Opmerkingen? (optioneel)" value={comment} onChange={(e) => setComment(e.target.value)} />
       <div className="flex gap-2">
         <button className="btn-ghost flex-1" onClick={onDone}>Later</button>
-        <button className="btn-primary flex-1" disabled={!rating} onClick={save}>Save rating</button>
+        <button className="btn-primary flex-1" disabled={!rating} onClick={save}>Score bewaren</button>
       </div>
     </div>
   );

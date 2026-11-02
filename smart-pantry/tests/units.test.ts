@@ -18,7 +18,7 @@ describe("units", () => {
   it("formats", () => {
     expect(formatQuantity(1500, "g")).toBe("1.5 kg");
     expect(formatQuantity(0.25, "l")).toBe("250 ml");
-    expect(formatQuantity(6, "pcs")).toBe("6 pcs");
+    expect(formatQuantity(6, "pcs")).toBe("6 st.");
   });
   it("quick steps never exceed what is left", () => {
     expect(quickSteps(1000, "ml")).toEqual([100, 250, 500]);

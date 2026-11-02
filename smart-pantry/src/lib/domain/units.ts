@@ -59,6 +59,7 @@ export function round(n: number, decimals = 3): number {
 /** Human friendly quantity: 1500 g → "1.5 kg", 0.25 l → "250 ml". */
 export function formatQuantity(q: number, unit: string): string {
   const u = normalizeUnit(unit);
+  if (u === "pcs") return `${trim(q)} st.`; // stuks
   if (u === "g" && q >= 1000) return `${trim(q / 1000)} kg`;
   if (u === "ml" && q >= 1000) return `${trim(q / 1000)} l`;
   if (u === "kg" && q < 1) return `${trim(q * 1000)} g`;

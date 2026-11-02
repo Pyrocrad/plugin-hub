@@ -19,6 +19,7 @@ interface State {
   ratings: Rating[];
   overrides: PreferenceOverride[];
   storeProducts: StoreProduct[];
+  aiEnabled: boolean;
   online: boolean;
 }
 
@@ -43,17 +44,17 @@ const DEMO = process.env.NEXT_PUBLIC_DEMO === "1";
 const HouseholdCtx = createContext<Ctx | null>(null);
 
 const ERRORS: Record<string, string> = {
-  version_conflict: "Someone else just changed this item. It has been refreshed – please try again.",
-  insufficient_quantity: "That's more than is left in stock.",
-  invalid_or_expired_invite: "That invite code is invalid or has expired.",
-  forbidden: "You don't have access to that household.",
+  version_conflict: "Iemand anders heeft dit product net aangepast. Het is vernieuwd – probeer opnieuw.",
+  insufficient_quantity: "Dat is meer dan er nog in voorraad is.",
+  invalid_or_expired_invite: "Die uitnodigingscode is ongeldig of verlopen.",
+  forbidden: "Je hebt geen toegang tot dat huishouden.",
 };
 
 export function HouseholdProvider({ children }: { children: ReactNode }) {
   const sb = supabaseBrowser();
   const [s, setS] = useState<State>({
     ready: false, user: null, household: null, members: [], inventory: [], events: [], shopping: [],
-    recipes: [], cookings: [], ratings: [], overrides: [], storeProducts: [], online: true,
+    recipes: [], cookings: [], ratings: [], overrides: [], storeProducts: [], aiEnabled: false, online: true,
   });
   const [toasts, setToasts] = useState<Ctx["toasts"]>([]);
   const hid = s.household?.id;
@@ -69,7 +70,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     if (DEMO) {
       const d = await import("./demo");
       return setS((p) => ({ ...p, ready: true, user: d.demoUser as unknown as User, household: d.demoHousehold, members: d.demoMembers, inventory: d.demoInventory,
-        events: d.demoEvents, shopping: d.demoShopping, recipes: d.demoRecipes, cookings: d.demoCookings, ratings: d.demoRatings, overrides: d.demoOverrides, storeProducts: d.demoStoreProducts }));
+        events: d.demoEvents, shopping: d.demoShopping, recipes: d.demoRecipes, cookings: d.demoCookings, ratings: d.demoRatings, overrides: d.demoOverrides, storeProducts: d.demoStoreProducts, aiEnabled: process.env.NEXT_PUBLIC_DEMO_AI === "1" }));
     }
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return setS((p) => ({ ...p, ready: true, user: null }));
@@ -77,6 +78,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     if (!mem) return setS((p) => ({ ...p, ready: true, user, household: null }));
     const id = mem.household_id as string;
     const since = new Date(Date.now() - 30 * 86400000).toISOString();
+    const ai = fetch("/api/ai/status").then((r) => r.json()).then((j) => Boolean(j.enabled)).catch(() => false);
     const [members, inv, ev, shop, rec, cook, rat, ov, sp] = await Promise.all([
       sb.from("household_members").select("profiles:user_id(*)").eq("household_id", id),
       // Active stock + recently finished items (for "recently consumed" & waste stats).
@@ -104,6 +106,8 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       overrides: ov.data ?? [],
       storeProducts: sp.data ?? [],
     }));
+    const aiEnabled = await ai;
+    setS((p) => ({ ...p, aiEnabled }));
   }, [sb]);
 
   useEffect(() => {
@@ -166,7 +170,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   }, [sb, hid, reload, upsertLocal, reloadStoreProducts]);
 
   const rpc = useCallback(async <T,>(fn: string, args: Record<string, unknown>): Promise<T | null> => {
-    if (DEMO) { toast("Demo mode – changes aren't saved"); return null; }
+    if (DEMO) { toast("Demomodus – wijzigingen worden niet bewaard"); return null; }
     const { data, error } = await sb.rpc(fn, args);
     if (error) {
       const key = Object.keys(ERRORS).find((k) => error.message.includes(k));
@@ -179,8 +183,8 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 
   const memberName = useCallback((id: string | null | undefined) => {
     if (!id) return "—";
-    if (id === s.user?.id) return "You";
-    return s.members.find((m) => m.id === id)?.display_name ?? "Housemate";
+    if (id === s.user?.id) return "Jij";
+    return s.members.find((m) => m.id === id)?.display_name ?? "Huisgenoot";
   }, [s.members, s.user]);
 
   const setStoreProducts = useCallback((sp: StoreProduct[]) => setS((p) => ({ ...p, storeProducts: sp })), []);

@@ -102,6 +102,15 @@ a date. Past-use-by items trigger a "don't eat" warning, and moving an item to t
 * Recipe photos need an optional `UNSPLASH_ACCESS_KEY`. Without it, illustrated placeholders are shown.
 * Push notifications are not in the MVP. Expiry alerts show on the dashboard (see roadmap).
 
+## Language & free mode
+* The whole interface is in **Dutch (nl-BE)**: Belgian date format, Dutch product names and categories, and Dutch/English
+  name matching ("tomaten" = "tomaat", "eieren" = "ei", "kipfilet" = "kippenborst"). The AI chef and scans answer in Dutch.
+* **Free mode (no paid AI):** leave `ANTHROPIC_API_KEY` empty and the app runs entirely on free services
+  (Supabase free tier + Vercel Hobby). The chef page then ranks **your own recipes** (add them under *＋ Eigen recept*)
+  by what's at home, what's about to expire and your ratings (`src/lib/domain/rank.ts`). Photo, receipt and list
+  scans need the AI, so they're unavailable in free mode. Typing, voice and barcode adding still work.
+  Adding a key later switches the AI chef on, with no other change.
+
 ## Smart restock suggestions
 The shopping list has a **"Suggested for you"** card (also shown on the dashboard). It's computed deterministically in
 `src/lib/domain/restock.ts`, with no AI cost:

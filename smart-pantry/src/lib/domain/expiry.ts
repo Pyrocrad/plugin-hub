@@ -3,13 +3,13 @@ import type { InventoryItem, ExpiryType } from "./types";
 export type Urgency = "expired" | "today" | "within2" | "within5" | "within7" | "fresh" | "unknown";
 
 export const URGENCY_META: Record<Urgency, { label: string; color: string; rank: number }> = {
-  expired: { label: "Past date", color: "bg-red-600 text-white", rank: 0 },
-  today: { label: "Today", color: "bg-red-500 text-white", rank: 1 },
-  within2: { label: "≤ 2 days", color: "bg-orange-500 text-white", rank: 2 },
-  within5: { label: "≤ 5 days", color: "bg-amber-400 text-amber-950", rank: 3 },
-  within7: { label: "≤ 7 days", color: "bg-yellow-200 text-yellow-900", rank: 4 },
-  fresh: { label: "Fresh", color: "bg-emerald-100 text-emerald-800", rank: 5 },
-  unknown: { label: "No date", color: "bg-slate-100 text-slate-600", rank: 6 },
+  expired: { label: "Over datum", color: "bg-red-600 text-white", rank: 0 },
+  today: { label: "Vandaag", color: "bg-red-500 text-white", rank: 1 },
+  within2: { label: "≤ 2 dagen", color: "bg-orange-500 text-white", rank: 2 },
+  within5: { label: "≤ 5 dagen", color: "bg-amber-400 text-amber-950", rank: 3 },
+  within7: { label: "≤ 7 dagen", color: "bg-yellow-200 text-yellow-900", rank: 4 },
+  fresh: { label: "Vers", color: "bg-emerald-100 text-emerald-800", rank: 5 },
+  unknown: { label: "Geen datum", color: "bg-slate-100 text-slate-600", rank: 6 },
 };
 
 /** Parse a YYYY-MM-DD date as a local calendar day (no timezone drift). */
@@ -63,14 +63,14 @@ export function urgencyOf(item: Pick<InventoryItem, "expiry_date" | "opened_at" 
  * We never claim something is safe just because the date has not passed.
  */
 export function expiryAdvice(type: ExpiryType, days: number | null): string {
-  if (days == null || type === "none") return "No date recorded – check the product yourself.";
+  if (days == null || type === "none") return "Geen datum ingevuld – controleer het product zelf.";
   if (type === "use_by") {
-    if (days < 0) return "Use-by date has passed. Do not eat – discard it.";
-    if (days === 0) return "Use-by date is today. Eat today or freeze it now (if suitable).";
-    return `Use by in ${days} day${days === 1 ? "" : "s"}. Follow storage instructions; a date is not a safety guarantee.`;
+    if (days < 0) return "De 'te gebruiken tot'-datum is verstreken. Niet meer opeten – weggooien.";
+    if (days === 0) return "'Te gebruiken tot' vandaag. Vandaag opeten of nu invriezen (als dat kan).";
+    return `Te gebruiken tot over ${days} dag${days === 1 ? "" : "en"}. Volg de bewaarinstructies; een datum is geen veiligheidsgarantie.`;
   }
-  if (days < 0) return "Best-before has passed. Quality may be lower – look, smell and taste before using.";
-  return `Best before in ${days} day${days === 1 ? "" : "s"} (quality date, not a safety guarantee).`;
+  if (days < 0) return "'Ten minste houdbaar tot' is verstreken. Kwaliteit kan minder zijn – kijk, ruik en proef eerst.";
+  return `Ten minste houdbaar tot over ${days} dag${days === 1 ? "" : "en"} (kwaliteitsdatum, geen veiligheidsgarantie).`;
 }
 
 export function groupByUrgency<T extends InventoryItem>(items: T[], today: string): Record<Urgency, T[]> {

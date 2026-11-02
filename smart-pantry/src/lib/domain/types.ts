@@ -139,11 +139,19 @@ export const CATEGORIES = [
 ] as const;
 
 export const LOCATIONS: { id: Location; label: string; icon: string }[] = [
-  { id: "fridge", label: "Fridge", icon: "🧊" },
-  { id: "freezer", label: "Freezer", icon: "❄️" },
-  { id: "pantry", label: "Pantry", icon: "🥫" },
-  { id: "other", label: "Other", icon: "📦" },
+  { id: "fridge", label: "Koelkast", icon: "🧊" },
+  { id: "freezer", label: "Diepvries", icon: "❄️" },
+  { id: "pantry", label: "Voorraadkast", icon: "🥫" },
+  { id: "other", label: "Elders", icon: "📦" },
 ];
+
+/** Dutch display names for the (internal, English) category keys. */
+export const CATEGORY_NL: Record<string, string> = {
+  vegetables: "groenten", fruit: "fruit", meat: "vlees", fish: "vis", dairy: "zuivel", eggs: "eieren", grains: "granen",
+  bread: "brood", "pasta & rice": "pasta & rijst", legumes: "peulvruchten", spices: "kruiden", sauces: "sauzen",
+  oils: "olie", baking: "bakken", snacks: "snacks", drinks: "dranken", frozen: "diepvries", other: "overig",
+};
+export const catNL = (c: string) => CATEGORY_NL[c] ?? c;
 
 export interface StoreProduct {
   household_id: string;

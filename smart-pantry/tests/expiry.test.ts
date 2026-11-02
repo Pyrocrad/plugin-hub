@@ -22,9 +22,9 @@ describe("expiry", () => {
     expect(urgencyOf(item({ expiry_date: "2026-12-01" }), "2026-11-30")).toBe("within2");
   });
   it("distinguishes use-by from best-before and never claims safety", () => {
-    expect(expiryAdvice("use_by", -1)).toMatch(/Do not eat/);
-    expect(expiryAdvice("best_before", -1)).toMatch(/Quality may be lower/);
-    expect(expiryAdvice("use_by", 3)).toMatch(/not a safety guarantee/);
+    expect(expiryAdvice("use_by", -1)).toMatch(/Niet meer opeten/);
+    expect(expiryAdvice("best_before", -1)).toMatch(/Kwaliteit kan minder zijn/);
+    expect(expiryAdvice("use_by", 3)).toMatch(/geen veiligheidsgarantie/);
   });
   it("ignores consumed items when grouping", () => {
     const g = groupByUrgency([item({ expiry_date: today, status: "consumed" }), item({ expiry_date: today })], today);

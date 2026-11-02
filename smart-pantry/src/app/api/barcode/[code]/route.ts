@@ -8,7 +8,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
   try {
     await requireHousehold();
     const { code } = await params;
-    if (!/^\d{6,14}$/.test(code)) return NextResponse.json({ error: "Invalid barcode" }, { status: 400 });
+    if (!/^\d{6,14}$/.test(code)) return NextResponse.json({ error: "Ongeldige barcode" }, { status: 400 });
     const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,generic_name,quantity,categories_tags`, {
       headers: { "User-Agent": "SmartPantry/0.1" },
       signal: AbortSignal.timeout(6000),

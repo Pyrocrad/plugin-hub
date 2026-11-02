@@ -1,5 +1,5 @@
 "use client";
-import type { InventoryItem } from "@/lib/domain/types";
+import { catNL, type InventoryItem } from "@/lib/domain/types";
 import { formatQuantity, quickSteps } from "@/lib/domain/units";
 import { useHousehold } from "@/lib/store";
 import { Avatar, ExpiryBadge, StoreChip } from "./ui";
@@ -18,21 +18,21 @@ export function ItemRow({ item, onOpen }: { item: InventoryItem; onOpen: () => v
         <div className="flex items-center gap-2">
           <span className="truncate font-medium">{item.name}</span>
           <ExpiryBadge item={item} />
-          {item.opened_at && <span className="chip bg-sky-50 text-sky-700">opened</span>}
-          {low && <span className="chip bg-violet-50 text-violet-700">low</span>}
+          {item.opened_at && <span className="chip bg-sky-50 text-sky-700">open</span>}
+          {low && <span className="chip bg-violet-50 text-violet-700">bijna op</span>}
         </div>
         <div className="mt-0.5 flex items-center gap-1.5 text-xs text-stone-500">
-          <span className="font-medium text-stone-700">{formatQuantity(item.quantity, item.unit)}</span>
-          <span>· {item.category}</span>
+          <span className="whitespace-nowrap font-medium text-stone-700">{formatQuantity(item.quantity, item.unit)}</span>
+          <span className="whitespace-nowrap">· {catNL(item.category)}</span>
           {item.store && <span className="ml-1"><StoreChip store={item.store} stores={household?.stores ?? []} /></span>}
           {who && <span className="ml-1 inline-flex items-center gap-1"><Avatar name={who.display_name} color={who.avatar_color} /></span>}
         </div>
       </button>
       <div className="flex shrink-0 gap-1">
         {steps.map((s) => (
-          <button key={s} className="btn-ghost px-2 py-1.5 text-xs" onClick={() => a.consume(item, s)} aria-label={`Use ${s} ${item.unit}`}>−{formatQuantity(s, item.unit)}</button>
+          <button key={s} className="btn-ghost px-2 py-1.5 text-xs" onClick={() => a.consume(item, s)} aria-label={`Gebruik ${s} ${item.unit}`}>−{formatQuantity(s, item.unit)}</button>
         ))}
-        <button className="btn bg-brand-50 px-2 py-1.5 text-xs text-brand-700 hover:bg-brand-100" onClick={() => a.useAll(item)}>All</button>
+        <button className="btn bg-brand-50 px-2 py-1.5 text-xs text-brand-700 hover:bg-brand-100" onClick={() => a.useAll(item)}>Op</button>
       </div>
     </li>
   );

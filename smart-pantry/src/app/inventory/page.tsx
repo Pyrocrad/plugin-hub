@@ -51,24 +51,24 @@ function InventoryInner() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="h1">My inventory</h1>
-        <button className="btn-primary" onClick={() => setAdding(true)}>＋ Add</button>
+        <h1 className="h1">Voorraad</h1>
+        <button className="btn-primary" onClick={() => setAdding(true)}>＋ Toevoegen</button>
       </div>
       <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {[{ id: "all" as const, label: "All", icon: "🏠" }, ...LOCATIONS].map((l) => (
+        {[{ id: "all" as const, label: "Alles", icon: "🏠" }, ...LOCATIONS].map((l) => (
           <button key={l.id} onClick={() => setLoc(l.id)} className={`btn shrink-0 ${loc === l.id ? "bg-stone-900 text-white" : "btn-ghost"}`}>
             {l.icon} {l.label} <span className="opacity-60">{l.id === "all" ? active.length : active.filter((i) => i.location === l.id).length}</span>
           </button>
         ))}
       </div>
       <div className="flex gap-2">
-        <input className="input" placeholder="Search products or store…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="input" placeholder="Zoek product of winkel…" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="input w-36" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
-          <option value="expiry">Use first</option><option value="name">A–Z</option><option value="category">Category</option>
+          <option value="expiry">Eerst op</option><option value="name">A–Z</option><option value="category">Categorie</option>
         </select>
       </div>
       {list.length === 0 ? (
-        <Empty icon="🧺" title={q ? "Nothing matches" : "Nothing here yet"}>Tap “Add” to type, speak, scan a barcode, or photograph your groceries.</Empty>
+        <Empty icon="🧺" title={q ? "Niets gevonden" : "Hier staat nog niets"}>Tik op “Toevoegen” om te typen, in te spreken, een barcode te scannen of je boodschappen te fotograferen.</Empty>
       ) : groups.map((g) => (
         <section key={g.id}>
           <h2 className="mb-1.5 px-1 text-sm font-medium text-stone-500">{g.icon} {g.label}</h2>

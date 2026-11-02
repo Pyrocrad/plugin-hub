@@ -5,14 +5,14 @@ import { useEffect } from "react";
 import { useHousehold } from "@/lib/store";
 
 const NAV = [
-  { href: "/", label: "Dashboard", icon: "🏠", mobile: true },
-  { href: "/inventory", label: "Inventory", icon: "🧊", mobile: true },
+  { href: "/", label: "Overzicht", icon: "🏠", mobile: true },
+  { href: "/inventory", label: "Voorraad", icon: "🧊", mobile: true },
   { href: "/recipes", label: "Chef", icon: "👩‍🍳", mobile: true },
-  { href: "/history", label: "History", icon: "📖", mobile: false },
-  { href: "/shopping", label: "Shopping", icon: "🛒", mobile: true },
-  { href: "/stores", label: "Store layout", icon: "🧭", mobile: false },
-  { href: "/preferences", label: "Preferences", icon: "❤️", mobile: false },
-  { href: "/settings", label: "Settings", icon: "⚙️", mobile: true },
+  { href: "/history", label: "Geschiedenis", icon: "📖", mobile: false },
+  { href: "/shopping", label: "Boodschappen", icon: "🛒", mobile: true },
+  { href: "/stores", label: "Winkelindeling", icon: "🧭", mobile: false },
+  { href: "/preferences", label: "Voorkeuren", icon: "❤️", mobile: false },
+  { href: "/settings", label: "Instellingen", icon: "⚙️", mobile: true },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -45,16 +45,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
             <div className="mt-auto px-2 text-xs text-stone-400">
-              {household?.name} · <span className={online ? "text-emerald-600" : "text-amber-600"}>{online ? "● live" : "● reconnecting"}</span>
+              {household?.name} · <span className={online ? "text-emerald-600" : "text-amber-600"}>{online ? "● live" : "● opnieuw verbinden"}</span>
             </div>
           </aside>
           <main className="pb-safe mx-auto w-full max-w-5xl px-4 pt-5 md:px-8 md:pb-10">
-            {!ready || !household ? <div className="py-20 text-center text-stone-400">Loading your kitchen…</div> : children}
+            {!ready || !household ? <div className="py-20 text-center text-stone-400">Je keuken wordt geladen…</div> : children}
           </main>
           <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-stone-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
             {NAV.filter((n) => n.mobile).map((n) => (
               <Link key={n.href} href={n.href} className={`relative flex flex-col items-center py-2 text-[11px] ${active(n.href) ? "text-brand-700" : "text-stone-500"}`}>
-                <span className="text-xl leading-6">{n.icon}</span>{n.label === "Settings" ? "More" : n.label}
+                <span className="text-xl leading-6">{n.icon}</span>{n.label === "Instellingen" ? "Meer" : n.label === "Boodschappen" ? "Lijst" : n.label}
                 {n.href === "/shopping" && openShopping > 0 && <span className="absolute right-4 top-1 h-4 min-w-4 rounded-full bg-brand-600 px-1 text-[10px] text-white">{openShopping}</span>}
               </Link>
             ))}

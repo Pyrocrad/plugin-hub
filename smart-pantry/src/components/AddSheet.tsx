@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useHousehold, today } from "@/lib/store";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { CATEGORIES, LOCATIONS, type ExpiryType, type Location } from "@/lib/domain/types";
+import { CATEGORIES, LOCATIONS, catNL, type ExpiryType, type Location } from "@/lib/domain/types";
 import { UNIT_OPTIONS, normalizeUnit } from "@/lib/domain/units";
 import { parseQuickAdd } from "@/lib/domain/parse";
 import { addDays } from "@/lib/domain/expiry";
@@ -62,14 +62,14 @@ export function AddSheet({ open, onClose, initialLocation, sharedFiles }: { open
     setSaving(false);
     if (error) return toast(error.message, "error");
     data!.forEach((r: any) => upsertLocal("inventory", r));
-    toast(`Added ${data!.length} product${data!.length > 1 ? "s" : ""}`);
+    toast(`${data!.length} product${data!.length > 1 ? "en" : ""} toegevoegd`);
     onClose();
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="Add products">
+    <Sheet open={open} onClose={onClose} title="Producten toevoegen">
       <div className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-stone-100 p-1 text-sm">
-        {([["quick", "✍️ Type / speak"], ["scan", "📷 Photo / list"], ["barcode", "▦ Barcode"]] as [Mode, string][]).map(([m, l]) => (
+        {([["quick", "✍️ Typ / spreek"], ["scan", "📷 Foto / lijst"], ["barcode", "▦ Barcode"]] as [Mode, string][]).map(([m, l]) => (
           <button key={m} onClick={() => setMode(m)} className={`rounded-lg py-1.5 ${mode === m ? "bg-white font-medium shadow-sm" : "text-stone-500"}`}>{l}</button>
         ))}
       </div>
@@ -79,13 +79,13 @@ export function AddSheet({ open, onClose, initialLocation, sharedFiles }: { open
 
       {drafts.length > 0 && (
         <div className="mt-5 space-y-3">
-          <div className="label">Review before saving ({drafts.length})</div>
-          <StorePicker stores={stores} value={store} onChange={setStore} label="Bought at" />
-          {!store && stores.length > 0 && <p className="text-xs text-stone-400">No store picked – each product gets the store you last bought it at.</p>}
+          <div className="label">Nakijken voor bewaren ({drafts.length})</div>
+          <StorePicker stores={stores} value={store} onChange={setStore} label="Gekocht bij" />
+          {!store && stores.length > 0 && <p className="text-xs text-stone-400">Geen winkel gekozen – elk product krijgt de winkel waar je het laatst kocht.</p>}
           {drafts.map((d) => (
             <DraftRow key={d.key} d={d} onChange={(nd) => setDrafts((p) => p.map((x) => (x.key === d.key ? nd : x)))} onRemove={() => setDrafts((p) => p.filter((x) => x.key !== d.key))} />
           ))}
-          <button className="btn-primary w-full py-3" disabled={saving} onClick={saveAll}>{saving ? "Saving…" : `Add ${drafts.length} to inventory`}</button>
+          <button className="btn-primary w-full py-3" disabled={saving} onClick={saveAll}>{saving ? "Bewaren…" : `${drafts.length} toevoegen aan voorraad`}</button>
         </div>
       )}
     </Sheet>
@@ -98,19 +98,19 @@ function DraftRow({ d, onChange, onRemove }: { d: Draft; onChange: (d: Draft) =>
     <div className={`space-y-2 rounded-2xl border p-3 ${d.confidence === "low" ? "border-amber-300 bg-amber-50/50" : "border-stone-200"}`}>
       <div className="flex gap-2">
         <input className="input font-medium" value={d.name} onChange={(e) => set({ name: e.target.value, category: guessCategory(e.target.value) })} />
-        <button className="btn-ghost shrink-0" onClick={onRemove} aria-label="Remove">✕</button>
+        <button className="btn-ghost shrink-0" onClick={onRemove} aria-label="Verwijderen">✕</button>
       </div>
       <div className="grid grid-cols-3 gap-2">
         <input className="input" inputMode="decimal" value={d.quantity} onChange={(e) => set({ quantity: Number(e.target.value) })} />
-        <select className="input" value={d.unit} onChange={(e) => set({ unit: e.target.value })}>{[...new Set([d.unit, ...UNIT_OPTIONS])].map((u) => <option key={u}>{u}</option>)}</select>
+        <select className="input" value={d.unit} onChange={(e) => set({ unit: e.target.value })}>{[...new Set([d.unit, ...UNIT_OPTIONS])].map((u) => <option key={u} value={u}>{u === "pcs" ? "st." : u}</option>)}</select>
         <select className="input" value={d.location} onChange={(e) => set({ location: e.target.value as Location })}>{LOCATIONS.map((l) => <option key={l.id} value={l.id}>{l.icon} {l.label}</option>)}</select>
-        <select className="input" value={d.category} onChange={(e) => set({ category: e.target.value })}>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
-        <input className="input" type="date" value={d.expiry_date} onChange={(e) => set({ expiry_date: e.target.value })} aria-label="Expiry date" />
+        <select className="input" value={d.category} onChange={(e) => set({ category: e.target.value })}>{CATEGORIES.map((c) => <option key={c} value={c}>{catNL(c)}</option>)}</select>
+        <input className="input" type="date" value={d.expiry_date} onChange={(e) => set({ expiry_date: e.target.value })} aria-label="Vervaldatum" />
         <select className="input" value={d.expiry_type} onChange={(e) => set({ expiry_type: e.target.value as ExpiryType })}>
-          <option value="use_by">Use-by</option><option value="best_before">Best-before</option><option value="none">No date</option>
+          <option value="use_by">Te gebruiken tot</option><option value="best_before">Ten minste houdbaar</option><option value="none">Geen datum</option>
         </select>
       </div>
-      {d.confidence === "low" && <p className="text-xs text-amber-700">AI wasn&apos;t sure about this one – please check.</p>}
+      {d.confidence === "low" && <p className="text-xs text-amber-700">De AI was hier niet zeker van – even nakijken.</p>}
     </div>
   );
 }
@@ -125,7 +125,7 @@ function QuickAdd({ onAdd }: { onAdd: (d: Draft[]) => void }) {
     if (!SR) return;
     if (listening) return recRef.current?.stop();
     const rec = new SR();
-    rec.lang = navigator.language || "en-US";
+    rec.lang = "nl-BE";
     rec.interimResults = false;
     rec.onresult = (e: any) => setText((t) => (t ? t + ", " : "") + e.results[0][0].transcript);
     rec.onend = () => setListening(false);
@@ -136,10 +136,10 @@ function QuickAdd({ onAdd }: { onAdd: (d: Draft[]) => void }) {
 
   return (
     <div className="space-y-2">
-      <textarea className="input min-h-24" placeholder={"2 l milk, 6 eggs, 500 g chicken breast\n1 kg potatoes"} value={text} onChange={(e) => setText(e.target.value)} />
+      <textarea className="input min-h-24" placeholder={"2 l melk, 6 eieren, 500 g kipfilet\n1 kg aardappelen"} value={text} onChange={(e) => setText(e.target.value)} />
       <div className="flex gap-2">
-        {SR && <button className={`btn ${listening ? "bg-red-600 text-white" : "btn-ghost"}`} onClick={voice}>{listening ? "■ Stop" : "🎙️ Speak"}</button>}
-        <button className="btn-primary flex-1" disabled={!text.trim()} onClick={() => { onAdd(parseQuickAdd(text).map((p) => draft(p))); setText(""); }}>Add to review list</button>
+        {SR && <button className={`btn ${listening ? "bg-red-600 text-white" : "btn-ghost"}`} onClick={voice}>{listening ? "■ Stop" : "🎙️ Spreek"}</button>}
+        <button className="btn-primary flex-1" disabled={!text.trim()} onClick={() => { onAdd(parseQuickAdd(text).map((p) => draft(p))); setText(""); }}>Toevoegen aan lijst</button>
       </div>
     </div>
   );
@@ -167,9 +167,9 @@ function ScanAdd({ onAdd, onStore, initialFiles }: { onAdd: (d: Draft[]) => void
           expiry_date: it.suggested_shelf_days != null ? addDays(today(), it.suggested_shelf_days) : "", confidence: it.confidence,
         })));
       }
-      if (!total) toast("Nothing recognised – try a sharper photo", "error");
+      if (!total) toast("Niets herkend – probeer een scherpere foto", "error");
     } catch (e: any) {
-      toast(e.message || "Scan failed", "error");
+      toast(e.message || "Scannen mislukt", "error");
     } finally {
       setBusy(null);
       setProgress("");
@@ -181,15 +181,15 @@ function ScanAdd({ onAdd, onStore, initialFiles }: { onAdd: (d: Draft[]) => void
   const [shared, setShared] = useState<File[] | null>(initialFiles?.length ? initialFiles : null);
 
   const cards: [ScanMode, string, string, string][] = [
-    ["list", "📝", "Grocery list", "Handwritten or typed list, notes app screenshot"],
-    ["receipt", "🧾", "Receipt", "Also detects the store"],
-    ["photo", "🛍️", "Groceries", "Photo of the products themselves"],
+    ["list", "📝", "Boodschappenlijst", "Handgeschreven, getypt of screenshot"],
+    ["receipt", "🧾", "Kasticket", "Herkent ook de winkel"],
+    ["photo", "🛍️", "Boodschappen", "Foto van de producten zelf"],
   ];
   return (
     <div className="space-y-3">
       {shared && !sharedDone.current && (
         <div className="rounded-2xl bg-brand-50 p-3 text-sm">
-          <div className="font-medium text-brand-900">{shared.length} shared photo{shared.length > 1 ? "s" : ""} – what is it?</div>
+          <div className="font-medium text-brand-900">{shared.length} gedeelde foto{shared.length > 1 ? "'s" : ""} – wat is het?</div>
           <div className="mt-2 flex gap-2">
             {cards.map(([m, icon, label]) => (
               <button key={m} className="btn-ghost flex-1 bg-white" disabled={!!busy} onClick={() => { sharedDone.current = true; handle(shared, m).then(() => setShared(null)); }}>{icon} {label}</button>
@@ -201,13 +201,13 @@ function ScanAdd({ onAdd, onStore, initialFiles }: { onAdd: (d: Draft[]) => void
         {cards.map(([m, icon, label, hint]) => (
           <label key={m} className={`card flex cursor-pointer flex-col items-center gap-1 p-3 text-center hover:bg-stone-50 ${m === "list" ? "ring-brand-500" : ""}`}>
             <span className="text-3xl">{icon}</span>
-            <span className="text-sm font-medium">{busy === m ? `Reading… ${progress}` : label}</span>
+            <span className="text-sm font-medium">{busy === m ? `Lezen… ${progress}` : label}</span>
             <span className="text-[11px] leading-tight text-stone-500">{hint}</span>
             <input type="file" accept="image/*" multiple className="hidden" disabled={!!busy} onChange={(e) => e.target.files?.length && handle([...e.target.files], m)} />
           </label>
         ))}
       </div>
-      <p className="text-xs text-stone-500">You can pick several photos at once. AI suggests, you confirm before anything is added. Expiry dates are estimates – check use-by dates on the packaging.</p>
+      <p className="text-xs text-stone-500">Je kan meerdere foto's tegelijk kiezen. De AI stelt voor, jij bevestigt voor er iets wordt toegevoegd. Vervaldata zijn schattingen – controleer de datum op de verpakking.</p>
     </div>
   );
 }
@@ -234,7 +234,7 @@ function BarcodeAdd({ onAdd }: { onAdd: (d: Draft[]) => void }) {
   async function lookup(c: string) {
     const r = await fetch(`/api/barcode/${c}`);
     const j = await r.json();
-    if (!r.ok || !j.found) return toast("Product not found – add it manually", "error");
+    if (!r.ok || !j.found) return toast("Product niet gevonden – voeg het manueel toe", "error");
     onAdd([draft({ name: j.name, category: j.category, quantity: j.quantity, unit: normalizeUnit(j.unit), barcode: c })]);
     setCode("");
   }
@@ -256,7 +256,7 @@ function BarcodeAdd({ onAdd }: { onAdd: (d: Draft[]) => void }) {
           await new Promise((r) => setTimeout(r, 250));
         }
       } catch {
-        toast("Camera not available", "error");
+        toast("Camera niet beschikbaar", "error");
         setScanning(false);
       }
     })();
@@ -268,10 +268,10 @@ function BarcodeAdd({ onAdd }: { onAdd: (d: Draft[]) => void }) {
     <div className="space-y-3">
       {supported && (scanning
         ? <video ref={video} className="aspect-video w-full rounded-2xl bg-black object-cover" playsInline muted />
-        : <button className="btn-primary w-full py-3" onClick={() => setScanning(true)}>📷 Scan barcode with camera</button>)}
+        : <button className="btn-primary w-full py-3" onClick={() => setScanning(true)}>📷 Barcode scannen met camera</button>)}
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); lookup(code); }}>
-        <input className="input" inputMode="numeric" placeholder="or type the barcode number" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
-        <button className="btn-ghost shrink-0" disabled={code.length < 6}>Look up</button>
+        <input className="input" inputMode="numeric" placeholder="of typ het barcodenummer" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
+        <button className="btn-ghost shrink-0" disabled={code.length < 6}>Zoeken</button>
       </form>
     </div>
   );

@@ -5,13 +5,18 @@ import { AiRecipeSet, ScanResult, recipeToolSchema, scanToolSchema } from "./sch
 // The key is read on the server only. It is never sent to the browser.
 function client() {
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not configured on the server");
+  if (!key) throw new Error("De AI is niet ingesteld (geen API-sleutel) – de app werkt in gratis modus.");
   return new Anthropic({ apiKey: key, maxRetries: 2, timeout: 90_000 });
 }
 const MODEL = () => process.env.CLAUDE_MODEL || "claude-sonnet-5-5";
 const VISION_MODEL = () => process.env.CLAUDE_VISION_MODEL || MODEL();
 
 const CHEF_SYSTEM = `You are the household's personal chef. You plan meals from what is ACTUALLY in their kitchen.
+
+Language: the household lives in Belgium and speaks Dutch (Flemish). Write EVERYTHING the user sees in natural
+Belgian Dutch: message, titles, descriptions, "why", steps and ingredient names. Also give cuisine, main_ingredients
+and methods in Dutch, lowercase (e.g. "italiaans", "kip", "roerbakken"). Prices are in euro, think Belgian supermarket
+prices (Delhaize/Colruyt). image_query stays in English.
 
 Hard rules:
 - Allergies listed under allergies_NEVER_USE must never appear, not even optional.
@@ -57,16 +62,16 @@ export async function suggestRecipes(context: unknown, request: string, opts: { 
     ],
   });
   const block = res.content.find((b) => b.type === "tool_use");
-  if (!block || block.type !== "tool_use") throw new Error("Claude returned no recipes");
+  if (!block || block.type !== "tool_use") throw new Error("De chef gaf geen recepten terug – probeer opnieuw.");
   const parsed = AiRecipeSet.safeParse(block.input);
-  if (!parsed.success) throw new Error("Claude returned malformed recipes: " + parsed.error.issues[0]?.message);
+  if (!parsed.success) throw new Error("De chef gaf een onleesbaar antwoord – probeer opnieuw.");
   return { ...parsed.data, usage: res.usage };
 }
 
 const SCAN_PROMPTS = {
-  photo: "Identify every distinct grocery product visible in this photo. Estimate quantity and unit from packaging when readable; otherwise count pieces. Choose a sensible storage location.",
-  list: "This is a photo of a grocery/shopping list (handwritten, printed, or a phone screenshot) of products the household has just bought. Read every line, including messy handwriting. Each line is one product; parse quantities like '2x', '500g', '1 l', '6 eggs'. Use clear generic product names, keep the language of the list. Ignore crossed-out lines and non-food items. If a line is illegible, give your best guess with confidence low. Default to 1 pcs if no quantity.",
-  receipt: "This is a supermarket receipt. Put the shop name in store_name. Extract every FOOD product purchased (skip bags, deposits, discounts, non-food). Expand abbreviations to clear generic product names. Use quantities/weights printed on the receipt; default to 1 pcs if unknown. Include price per line if visible.",
+  photo: "Identify every distinct grocery product visible in this photo. Use Dutch (Flemish) generic product names. Estimate quantity and unit from packaging when readable; otherwise count pieces. Choose a sensible storage location.",
+  list: "This is a photo of a grocery/shopping list (handwritten, printed, or a phone screenshot) of products the household has just bought. Read every line, including messy handwriting. Each line is one product; parse quantities like '2x', '500g', '1 l', '6 eggs'. Use clear generic product names in Dutch (translate if the list is in another language). Ignore crossed-out lines and non-food items. If a line is illegible, give your best guess with confidence low. Default to 1 pcs if no quantity.",
+  receipt: "This is a supermarket receipt. Put the shop name in store_name. Extract every FOOD product purchased (skip bags, deposits, discounts, non-food). Expand abbreviations to clear generic Dutch product names (e.g. 'HALFV MELK 1L' → 'Halfvolle melk'). Use quantities/weights printed on the receipt; default to 1 pcs if unknown. Include price per line if visible.",
 } as const;
 
 export async function scanImage(base64: string, mediaType: "image/jpeg" | "image/png" | "image/webp", mode: keyof typeof SCAN_PROMPTS) {
@@ -86,9 +91,9 @@ export async function scanImage(base64: string, mediaType: "image/jpeg" | "image
     ],
   });
   const block = res.content.find((b) => b.type === "tool_use");
-  if (!block || block.type !== "tool_use") throw new Error("No products detected");
+  if (!block || block.type !== "tool_use") throw new Error("Geen producten herkend");
   const parsed = ScanResult.safeParse(block.input);
-  if (!parsed.success) throw new Error("Could not read the scan result");
+  if (!parsed.success) throw new Error("Het scanresultaat kon niet gelezen worden");
   return { items: parsed.data.items, store: parsed.data.store_name ?? null };
 }
 

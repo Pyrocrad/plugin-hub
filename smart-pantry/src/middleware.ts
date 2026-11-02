@@ -25,4 +25,4 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|sw.js|offline.html|share-target).*)"] };
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|sw.js|offline.html|share-target|api/ai/status).*)"] };
