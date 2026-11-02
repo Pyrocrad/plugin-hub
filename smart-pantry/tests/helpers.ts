@@ -4,7 +4,7 @@ export function item(p: Partial<InventoryItem>): InventoryItem {
   n++;
   return {
     id: `i${n}`, household_id: "h", name: "x", category: "other", quantity: 1, unit: "pcs", location: "fridge",
-    purchase_date: null, expiry_date: null, expiry_type: "best_before", opened_at: null, days_after_opening: null,
+    purchase_date: null, expiry_date: null, expiry_type: "best_before", expiry_estimated: false, opened_at: null, days_after_opening: null,
     low_stock_threshold: null, barcode: null, notes: null, store: null, status: "active", version: 1, created_by: null,
     updated_by: null, created_at: "", updated_at: "", ...p,
   };

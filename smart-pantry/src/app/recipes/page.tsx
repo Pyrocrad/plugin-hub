@@ -6,6 +6,7 @@ import { useHousehold, today } from "@/lib/store";
 import { rankRecipes } from "@/lib/domain/rank";
 import { RecipeCard } from "@/components/RecipeCard";
 import { Empty } from "@/components/ui";
+import { ClaudeAppBridge } from "@/components/ClaudeAppBridge";
 
 const QUICK = ["Wat kan ik vanavond koken?", "Iets met kip en groenten uit de koelkast", "Snel, onder 30 minuten", "Wat moet ik koken om niets weg te gooien?", "Verras me met iets nieuws", "Niets waarvoor ik moet winkelen", "Iets zoals de recepten die we 5/5 gaven"];
 
@@ -70,7 +71,10 @@ function RecipesInner() {
           </div>
         </form>
       ) : (
-        <FreeChef maxMinutes={maxMinutes} setMaxMinutes={setMaxMinutes} noShopping={noShopping} setNoShopping={setNoShopping} />
+        <>
+          <FreeChef maxMinutes={maxMinutes} setMaxMinutes={setMaxMinutes} noShopping={noShopping} setNoShopping={setNoShopping} />
+          <ClaudeAppBridge maxMinutes={maxMinutes || undefined} noShopping={noShopping} />
+        </>
       )}
 
       {busy && <div className="grid gap-4 sm:grid-cols-3">{[0, 1, 2].map((i) => <div key={i} className="card h-72 animate-pulse bg-stone-100" />)}</div>}

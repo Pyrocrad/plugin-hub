@@ -6,8 +6,10 @@ import { CATEGORIES, LOCATIONS, catNL, type ExpiryType, type Location } from "@/
 import { UNIT_OPTIONS, normalizeUnit } from "@/lib/domain/units";
 import { parseQuickAdd } from "@/lib/domain/parse";
 import { addDays } from "@/lib/domain/expiry";
+import { estimateShelfLife } from "@/lib/domain/shelflife";
 import { guessCategory } from "@/lib/domain/shopping";
 import { Sheet, StorePicker } from "./ui";
+import { LIST_PHOTO_INSTRUCTION } from "./ClaudeAppBridge";
 import { matchStore, preferredStore } from "@/lib/domain/stores";
 
 export interface Draft {
@@ -22,6 +24,8 @@ export interface Draft {
   barcode?: string | null;
   confidence?: string;
   store?: string | null;
+  estimated?: boolean;
+  openedDays?: number | null;
 }
 
 const DEFAULT_LOC: Record<string, Location> = { meat: "fridge", fish: "fridge", dairy: "fridge", eggs: "fridge", vegetables: "fridge", fruit: "pantry", frozen: "freezer" };
@@ -29,17 +33,25 @@ const DEFAULT_TYPE: Record<string, ExpiryType> = { meat: "use_by", fish: "use_by
 let k = 0;
 export function draft(p: Partial<Draft> & { name: string }): Draft {
   const category = p.category ?? guessCategory(p.name);
-  return {
+  const d: Draft = {
     key: ++k, quantity: 1, unit: "pcs", expiry_date: "", category,
     location: DEFAULT_LOC[category] ?? "pantry", expiry_type: DEFAULT_TYPE[category] ?? "best_before", ...p,
   };
+  return d.expiry_date ? d : withEstimate(d);
+}
+
+/** Fill in a typical shelf life (e.g. broccoli in the fridge: 5 days) when there's no printed date. */
+export function withEstimate(d: Draft): Draft {
+  const e = estimateShelfLife(d.name, d.category, d.location);
+  if (!e) return { ...d, expiry_date: "", estimated: false };
+  return { ...d, expiry_date: addDays(today(), e.days), expiry_type: e.type, estimated: true, openedDays: e.openedDays };
 }
 
 type Mode = "quick" | "scan" | "barcode";
 export type ScanMode = "photo" | "receipt" | "list";
 
 export function AddSheet({ open, onClose, initialLocation, sharedFiles }: { open: boolean; onClose: () => void; initialLocation?: Location; sharedFiles?: File[] }) {
-  const { household, toast, upsertLocal, inventory } = useHousehold();
+  const { household, toast, upsertLocal, inventory, aiEnabled } = useHousehold();
   const [mode, setMode] = useState<Mode>(sharedFiles?.length ? "scan" : "quick");
   const [store, setStore] = useState<string | null>(null);
   const stores = household?.stores ?? [];
@@ -57,6 +69,7 @@ export function AddSheet({ open, onClose, initialLocation, sharedFiles }: { open
       household_id: household!.id, name: d.name.trim(), category: d.category, quantity: d.quantity, unit: normalizeUnit(d.unit),
       location: d.location, expiry_date: d.expiry_date || null, expiry_type: d.expiry_type, purchase_date: today(), barcode: d.barcode ?? null,
       store: d.store !== undefined ? d.store : store ?? preferredStore(d.name, inventory),
+      expiry_estimated: Boolean(d.estimated && d.expiry_date), days_after_opening: d.openedDays ?? null,
     }));
     const { data, error } = await supabaseBrowser().from("inventory_items").insert(rows).select();
     setSaving(false);
@@ -74,7 +87,8 @@ export function AddSheet({ open, onClose, initialLocation, sharedFiles }: { open
         ))}
       </div>
       {mode === "quick" && <QuickAdd onAdd={addDrafts} />}
-      {mode === "scan" && <ScanAdd onAdd={addDrafts} onStore={(raw) => { const m = matchStore(raw, stores); if (m) setStore(m); }} initialFiles={sharedFiles} />}
+      {mode === "scan" && !aiEnabled && <ClaudeAppScan onDone={() => setMode("quick")} />}
+      {mode === "scan" && aiEnabled && <ScanAdd onAdd={addDrafts} onStore={(raw) => { const m = matchStore(raw, stores); if (m) setStore(m); }} initialFiles={sharedFiles} />}
       {mode === "barcode" && <BarcodeAdd onAdd={addDrafts} />}
 
       {drafts.length > 0 && (
@@ -93,7 +107,12 @@ export function AddSheet({ open, onClose, initialLocation, sharedFiles }: { open
 }
 
 function DraftRow({ d, onChange, onRemove }: { d: Draft; onChange: (d: Draft) => void; onRemove: () => void }) {
-  const set = (p: Partial<Draft>) => onChange({ ...d, ...p });
+  const set = (p: Partial<Draft>) => {
+    const next = { ...d, ...p };
+    // Estimated dates follow the product and storage place; a typed date is kept as-is.
+    const reestimate = d.estimated && ("location" in p || "name" in p || "category" in p);
+    onChange(reestimate ? withEstimate(next) : next);
+  };
   return (
     <div className={`space-y-2 rounded-2xl border p-3 ${d.confidence === "low" ? "border-amber-300 bg-amber-50/50" : "border-stone-200"}`}>
       <div className="flex gap-2">
@@ -105,11 +124,12 @@ function DraftRow({ d, onChange, onRemove }: { d: Draft; onChange: (d: Draft) =>
         <select className="input" value={d.unit} onChange={(e) => set({ unit: e.target.value })}>{[...new Set([d.unit, ...UNIT_OPTIONS])].map((u) => <option key={u} value={u}>{u === "pcs" ? "st." : u}</option>)}</select>
         <select className="input" value={d.location} onChange={(e) => set({ location: e.target.value as Location })}>{LOCATIONS.map((l) => <option key={l.id} value={l.id}>{l.icon} {l.label}</option>)}</select>
         <select className="input" value={d.category} onChange={(e) => set({ category: e.target.value })}>{CATEGORIES.map((c) => <option key={c} value={c}>{catNL(c)}</option>)}</select>
-        <input className="input" type="date" value={d.expiry_date} onChange={(e) => set({ expiry_date: e.target.value })} aria-label="Vervaldatum" />
+        <input className="input" type="date" value={d.expiry_date} onChange={(e) => set({ expiry_date: e.target.value, estimated: false })} aria-label="Vervaldatum" />
         <select className="input" value={d.expiry_type} onChange={(e) => set({ expiry_type: e.target.value as ExpiryType })}>
           <option value="use_by">Te gebruiken tot</option><option value="best_before">Ten minste houdbaar</option><option value="none">Geen datum</option>
         </select>
       </div>
+      {d.estimated && d.expiry_date && <p className="text-xs text-stone-500">📅 Datum geschat op gewone houdbaarheid – staat er een datum op de verpakking, vul die in.</p>}
       {d.confidence === "low" && <p className="text-xs text-amber-700">De AI was hier niet zeker van – even nakijken.</p>}
     </div>
   );
@@ -145,6 +165,26 @@ function QuickAdd({ onAdd }: { onAdd: (d: Draft[]) => void }) {
   );
 }
 
+/** Free mode: read a photo of a list/receipt with your own Claude app, paste the lines back. */
+function ClaudeAppScan({ onDone }: { onDone: () => void }) {
+  const { toast } = useHousehold();
+  return (
+    <div className="space-y-3 text-sm">
+      <p className="text-stone-600">Foto&apos;s lezen gebeurt in de gratis modus via je eigen <b>Claude-app</b> (Claude Pro), zonder extra kosten:</p>
+      <ol className="list-decimal space-y-1.5 pl-5 text-stone-700">
+        <li>Kopieer de instructie hieronder.</li>
+        <li>Open de Claude-app, voeg de foto van je lijstje of kasticket toe en plak de instructie erbij.</li>
+        <li>Kopieer het antwoord en plak het bij <b>Typ / spreek</b>.</li>
+      </ol>
+      <div className="flex flex-wrap gap-2">
+        <button className="btn-primary" onClick={() => navigator.clipboard.writeText(LIST_PHOTO_INSTRUCTION).then(() => toast("Instructie gekopieerd"), () => toast("Kopiëren lukte niet", "error"))}>📋 Kopieer instructie</button>
+        <a className="btn-ghost" href="https://claude.ai/new" target="_blank" rel="noreferrer">Open Claude ↗</a>
+        <button className="btn-ghost" onClick={onDone}>Naar Typ / spreek →</button>
+      </div>
+    </div>
+  );
+}
+
 function ScanAdd({ onAdd, onStore, initialFiles }: { onAdd: (d: Draft[]) => void; onStore: (raw: string | null) => void; initialFiles?: File[] }) {
   const { toast } = useHousehold();
   const [busy, setBusy] = useState<null | ScanMode>(null);
@@ -164,7 +204,7 @@ function ScanAdd({ onAdd, onStore, initialFiles }: { onAdd: (d: Draft[]) => void
         total += j.items.length;
         onAdd(j.items.map((it: any) => draft({
           name: it.name, category: it.category, quantity: it.quantity, unit: normalizeUnit(it.unit), location: it.location, expiry_type: it.expiry_type,
-          expiry_date: it.suggested_shelf_days != null ? addDays(today(), it.suggested_shelf_days) : "", confidence: it.confidence,
+          expiry_date: it.suggested_shelf_days != null ? addDays(today(), it.suggested_shelf_days) : "", estimated: it.suggested_shelf_days != null, confidence: it.confidence,
         })));
       }
       if (!total) toast("Niets herkend – probeer een scherpere foto", "error");

@@ -30,8 +30,8 @@ export function ExpiryBadge({ item }: { item: InventoryItem }) {
   const d = daysLeft(item, today());
   const label = d == null || item.expiry_type === "none" ? "Geen datum" : d < 0 ? `${-d}d over datum` : d === 0 ? "Vandaag" : `${d}d`;
   return (
-    <span className={`chip ${URGENCY_META[u].color}`} title={item.expiry_type === "use_by" ? "Te gebruiken tot (veiligheid)" : "Ten minste houdbaar tot (kwaliteit)"}>
-      {item.expiry_type === "use_by" && d != null ? "⚠︎ " : ""}{label}
+    <span className={`chip ${URGENCY_META[u].color}`} title={(item.expiry_estimated ? "Geschat · " : "") + (item.expiry_type === "use_by" ? "Te gebruiken tot (veiligheid)" : "Ten minste houdbaar tot (kwaliteit)")}>
+      {item.expiry_type === "use_by" && d != null ? "⚠︎ " : ""}{item.expiry_estimated && d != null && d >= 0 ? "~" : ""}{label}
     </span>
   );
 }

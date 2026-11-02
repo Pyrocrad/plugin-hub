@@ -11,6 +11,8 @@ import { LOCATIONS, catNL, type Location, type ShoppingItem } from "@/lib/domain
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Empty, Sheet, StoreChip, StorePicker } from "@/components/ui";
 import { preferredStore, sortForStore } from "@/lib/domain/stores";
+import { estimateShelfLife } from "@/lib/domain/shelflife";
+import { addDays } from "@/lib/domain/expiry";
 import { restockSuggestions } from "@/lib/domain/restock";
 import { today } from "@/lib/store";
 
@@ -197,9 +199,12 @@ function BuySheet({ item, onClose, onQuick }: { item: ShoppingItem | null; onClo
   const [store, setStore] = useState<string | null>(item?.store ?? null);
   const [loc, setLoc] = useState<Location>(item ? DEFAULT_LOC[item.category] ?? "pantry" : "fridge");
   const [qty, setQty] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [type, setType] = useState<"use_by" | "best_before">("best_before");
+  const [typed, setTyped] = useState<{ expiry: string; type: "use_by" | "best_before" } | null>(null);
   if (!item) return null;
+  // Until someone types a date, use the typical shelf life for this product and place.
+  const est = estimateShelfLife(item.name, item.category, loc);
+  const expiry = typed?.expiry ?? (est ? addDays(today(), est.days) : "");
+  const type = typed?.type ?? (est?.type === "use_by" ? "use_by" : "best_before");
   return (
     <Sheet open onClose={onClose} title={`${item.name} gekocht`}>
       <div className="space-y-3">
@@ -208,12 +213,13 @@ function BuySheet({ item, onClose, onQuick }: { item: ShoppingItem | null; onClo
         </div>
         <div className="grid grid-cols-3 gap-2">
           <input className="input" inputMode="decimal" placeholder={`${item.quantity ?? 1} ${item.unit ?? "pcs"}`} value={qty} onChange={(e) => setQty(e.target.value)} />
-          <input className="input" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} aria-label="Vervaldatum" />
-          <select className="input" value={type} onChange={(e) => setType(e.target.value as typeof type)}><option value="best_before">Ten minste houdbaar</option><option value="use_by">Te gebruiken tot</option></select>
+          <input className="input" type="date" value={expiry} onChange={(e) => setTyped({ expiry: e.target.value, type })} aria-label="Vervaldatum" />
+          <select className="input" value={type} onChange={(e) => setTyped({ expiry, type: e.target.value as "use_by" | "best_before" })}><option value="best_before">Ten minste houdbaar</option><option value="use_by">Te gebruiken tot</option></select>
         </div>
+        {!typed && est && <p className="text-xs text-stone-500">📅 Geschat: {catNL(item.category)} blijft {LOCATIONS.find((l) => l.id === loc)?.label.toLowerCase()} meestal ~{est.days} dagen goed. Staat er een datum op de verpakking? Vul die in.</p>}
         <StorePicker stores={household?.stores ?? []} value={store} onChange={setStore} label="Gekocht bij" />
         <button className="btn-primary w-full py-3" onClick={async () => {
-          const r = await rpc("purchase_shopping_item", { p_item: item.id, p_add_to_inventory: true, p_location: loc, p_expiry: expiry || null, p_expiry_type: type, p_quantity: qty ? Number(qty) : null, p_store: store });
+          const r = await rpc("purchase_shopping_item", { p_item: item.id, p_add_to_inventory: true, p_location: loc, p_expiry: expiry || null, p_expiry_type: type, p_quantity: qty ? Number(qty) : null, p_store: store, p_estimated: !typed && Boolean(est), p_days_after_opening: est?.openedDays ?? null });
           await reload();
           toast(r ? `${item.name} in ${LOCATIONS.find((l) => l.id === loc)?.label.toLowerCase()} gezet` : `${item.name} was al afgevinkt`);
           onClose();

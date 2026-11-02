@@ -89,4 +89,10 @@ select set_store_order(:'hid', 'Lidl', array['bread','butter']);
 select string_agg(normalized_name, ',' order by position) = 'bread,butter' as order_ok from store_products where store = 'Lidl' \gset
 \if :order_ok \else \echo 'FAIL order' \quit \endif
 
+-- Estimated expiry is stored as such.
+select id as s5 from add_shopping_item(:'hid','Broccoli','broccoli',1,'pcs','vegetables') \gset
+select purchase_shopping_item(:'s5', true, 'fridge', current_date + 5, 'best_before', null, null, true, null) as inv5 \gset
+select expiry_estimated as est_ok from inventory_items where id = :'inv5' \gset
+\if :est_ok \else \echo 'FAIL estimated' \quit \endif
+
 \echo 'ALL DATABASE TESTS PASSED'

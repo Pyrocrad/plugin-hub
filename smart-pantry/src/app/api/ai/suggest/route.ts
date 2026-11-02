@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireHousehold } from "@/lib/supabase/server";
 import { errorResponse } from "@/lib/http";
 import { buildAiContext } from "@/lib/domain/context";
-import { normalizeName } from "@/lib/domain/names";
+import { aiRecipeToRow } from "@/lib/ai/prompt";
 import { toDay } from "@/lib/domain/expiry";
 import { findDishPhoto, suggestRecipes } from "@/lib/ai/claude";
 
@@ -45,27 +45,7 @@ export async function POST(req: Request) {
     const result = await suggestRecipes(context, body.prompt, body);
     const photos = await Promise.all(result.recipes.map((r) => findDishPhoto(r.image_query)));
 
-    const rows = result.recipes.map((r, i) => ({
-      household_id: householdId,
-      title: r.title,
-      description: r.description + (r.why ? `\n\n${r.why}` : ""),
-      cuisine: r.cuisine,
-      tags: [...r.tags, ...r.uses_expiring.map((u) => `uses:${u}`)],
-      main_ingredients: r.main_ingredients.map(normalizeName),
-      methods: r.methods.map((m) => m.toLowerCase()),
-      ingredients: r.ingredients,
-      steps: r.steps,
-      prep_minutes: r.prep_minutes,
-      cook_minutes: r.cook_minutes,
-      difficulty: r.difficulty,
-      servings: r.servings,
-      image_url: photos[i],
-      kind: r.kind,
-      source: "ai",
-      estimated_missing_cost: r.estimated_missing_cost,
-      nutrition: r.nutrition,
-      created_by: user.id,
-    }));
+    const rows = result.recipes.map((r, i) => aiRecipeToRow(r, householdId, user.id, photos[i]));
     const { data: saved, error } = await sb.from("recipes").insert(rows).select("id");
     if (error) throw error;
 

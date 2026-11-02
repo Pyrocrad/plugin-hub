@@ -27,6 +27,7 @@ export function buildAiContext(input: {
       where: i.location,
       days_left: daysLeft(i, today),
       date_type: i.expiry_type,
+      date_is_estimate: i.expiry_estimated,
       opened: Boolean(i.opened_at),
       urgency: urgencyOf(i, today),
     }))

@@ -9,7 +9,7 @@ const ts = (n: number, h = 18) => { const d = new Date(); d.setDate(d.getDate() 
 let i = 0;
 const item = (name: string, category: string, quantity: number, unit: string, location: InventoryItem["location"], expiry: number | null, type: InventoryItem["expiry_type"] = "best_before", extra: Partial<InventoryItem> = {}): InventoryItem => ({
   id: `it${++i}`, household_id: H, name, category, quantity, unit, location, purchase_date: day(-3), expiry_date: expiry == null ? null : day(expiry),
-  expiry_type: expiry == null ? "none" : type, opened_at: null, days_after_opening: null, low_stock_threshold: null, barcode: null, notes: null, store: i % 3 === 0 ? "Delhaize" : "Colruyt",
+  expiry_type: expiry == null ? "none" : type, expiry_estimated: ["vegetables", "fruit"].includes(category), opened_at: null, days_after_opening: null, low_stock_threshold: null, barcode: null, notes: null, store: i % 3 === 0 ? "Delhaize" : "Colruyt",
   status: "active", version: 1, created_by: A, updated_by: i % 3 ? A : S, created_at: ts(-3), updated_at: ts(-(i % 4), 9 + i % 10), ...extra,
 });
 

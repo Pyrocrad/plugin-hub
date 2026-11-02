@@ -4,6 +4,7 @@ import { useHousehold, today } from "@/lib/store";
 import type { InventoryItem, Location } from "@/lib/domain/types";
 import { LOCATIONS, catNL } from "@/lib/domain/types";
 import { addDays, daysLeft, effectiveExpiry, expiryAdvice, FREEZER_DAYS } from "@/lib/domain/expiry";
+import { estimateShelfLife } from "@/lib/domain/shelflife";
 import { formatQuantity, quickSteps } from "@/lib/domain/units";
 import { ExpiryBadge, Sheet, StorePicker, timeAgo } from "./ui";
 
@@ -80,6 +81,7 @@ function ItemSheetBody({ item, onClose, history, memberName }: { item: Inventory
       </div>
       <p className={`rounded-xl p-2.5 text-xs ${item.expiry_type === "use_by" && d != null && d <= 0 ? "bg-red-50 text-red-800" : "bg-stone-50 text-stone-600"}`}>
         {expiryAdvice(item.expiry_type, d)}
+        {item.expiry_estimated && d != null && <><br />📅 Deze datum is geschat op de gewone houdbaarheid, niet van de verpakking.</>}
       </p>
 
       {item.status === "active" && (
@@ -114,7 +116,7 @@ function ItemSheetBody({ item, onClose, history, memberName }: { item: Inventory
             <button key={l.id} disabled={l.id === item.location} className={`btn ${l.id === item.location ? "bg-brand-50 text-brand-700" : "btn-ghost"}`}
               onClick={() => {
                 if (l.id === "freezer" && item.location !== "freezer") {
-                  const days = FREEZER_DAYS[item.category] ?? FREEZER_DAYS.other;
+                  const days = estimateShelfLife(item.name, item.category, "freezer")?.days ?? FREEZER_DAYS[item.category] ?? FREEZER_DAYS.other;
                   if (confirm(`Ingevroren blijft ${catNL(item.category)} meestal ~${days} dagen goed. Nieuwe diepvriesdatum instellen?`)) return a.move(item, l.id, addDays(today(), days), false);
                 }
                 a.move(item, l.id, null, true);
@@ -128,7 +130,7 @@ function ItemSheetBody({ item, onClose, history, memberName }: { item: Inventory
       <section className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">Datum ({item.expiry_type === "use_by" ? "te gebruiken tot" : "ten minste houdbaar tot"})</label>
-          <input className="input" type="date" defaultValue={item.expiry_date ?? ""} onBlur={(e) => e.target.value !== (item.expiry_date ?? "") && sbUpdate(item, { expiry_date: e.target.value || null })} />
+          <input className="input" type="date" defaultValue={item.expiry_date ?? ""} onBlur={(e) => e.target.value !== (item.expiry_date ?? "") && sbUpdate(item, { expiry_date: e.target.value || null, expiry_estimated: false })} />
         </div>
         <div>
           <label className="label">Soort datum</label>
@@ -146,7 +148,7 @@ function ItemSheetBody({ item, onClose, history, memberName }: { item: Inventory
           <label className="label">Houdbaar na openen (dagen)</label>
           <input className="input" inputMode="numeric" defaultValue={item.days_after_opening ?? ""} onBlur={(e) => sbUpdate(item, { days_after_opening: e.target.value ? Number(e.target.value) : null })} />
         </div>
-        {!item.opened_at && <button className="btn-ghost col-span-2" onClick={() => sbUpdate(item, { opened_at: today() })}>Vandaag geopend</button>}
+        {!item.opened_at && <button className="btn-ghost col-span-2" onClick={() => sbUpdate(item, { opened_at: today(), days_after_opening: item.days_after_opening ?? estimateShelfLife(item.name, item.category, item.location)?.openedDays ?? null })}>Vandaag geopend</button>}
         {effectiveExpiry(item) !== item.expiry_date && effectiveExpiry(item) && <p className="col-span-2 text-xs text-stone-500">Werkelijke datum na openen: {effectiveExpiry(item)}</p>}
         <div className="col-span-2">
           <label className="label">Waarschuwen bij weinig voorraad vanaf</label>

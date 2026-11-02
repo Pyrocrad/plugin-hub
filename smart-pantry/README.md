@@ -111,6 +111,21 @@ a date. Past-use-by items trigger a "don't eat" warning, and moving an item to t
   scans need the AI, so they're unavailable in free mode. Typing, voice and barcode adding still work.
   Adding a key later switches the AI chef on, with no other change.
 
+## Shelf life (houdbaarheid)
+When a product has no printed date, the app fills in a typical one from a built-in table
+(`src/lib/domain/shelflife.ts`, about 50 product groups plus category fallbacks), depending on where it's stored.
+For example: broccoli in the fridge 5 days, tomatoes 7 (5 in the cupboard), minced meat 1 day (use-by), chicken in the freezer 270.
+Such dates are marked as estimates (`expiry_estimated`, shown with "~") and are replaced as soon as you type the date from the packaging.
+Opened products get a default "keeps after opening" (milk 4 days, ham 3). Unknown products get no guessed date.
+Database: `supabase/migrations/0004_estimated_expiry.sql`.
+
+## Using your Claude Pro subscription (no API costs)
+A Claude Pro subscription can't be connected to an app (the API is billed separately), but the app can prepare
+the question for you. On the chef page: **Kopieer vraag** copies one complete prompt (stock with days left,
+both people's tastes and allergies, recent meals, the answer format). Paste it in the Claude app, copy the answer
+back and press **Recepten inlezen**. The recipes are validated (`parseBridgeReply`) and saved like any other.
+Photos of lists or receipts work the same way: copy the instruction, add the photo in Claude, then paste the lines into *Typ / spreek*.
+
 ## Smart restock suggestions
 The shopping list has a **"Suggested for you"** card (also shown on the dashboard). It's computed deterministically in
 `src/lib/domain/restock.ts`, with no AI cost:

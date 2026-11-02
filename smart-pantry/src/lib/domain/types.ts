@@ -13,6 +13,7 @@ export interface InventoryItem {
   purchase_date: string | null;
   expiry_date: string | null;
   expiry_type: ExpiryType;
+  expiry_estimated: boolean;
   opened_at: string | null;
   days_after_opening: number | null;
   low_stock_threshold: number | null;
