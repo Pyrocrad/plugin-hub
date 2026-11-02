@@ -8,16 +8,24 @@ import { parseQuickAdd } from "@/lib/domain/parse";
 import { LOCATIONS, type Location, type ShoppingItem } from "@/lib/domain/types";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Empty, Sheet } from "@/components/ui";
+import { restockSuggestions } from "@/lib/domain/restock";
+import { today } from "@/lib/store";
 
 const DEFAULT_LOC: Record<string, Location> = { meat: "fridge", fish: "fridge", dairy: "fridge", eggs: "fridge", vegetables: "fridge", frozen: "freezer" };
 
 export default function ShoppingPage() {
-  const { shopping, inventory, household, rpc, reload, upsertLocal, memberName, recipes } = useHousehold();
+  const { shopping, inventory, household, rpc, reload, upsertLocal, memberName, recipes, events, cookings } = useHousehold();
   const [text, setText] = useState("");
   const [buying, setBuying] = useState<ShoppingItem | null>(null);
   const open = shopping.filter((s) => s.status === "open");
   const done = shopping.filter((s) => s.status === "purchased").slice(0, 15);
   const low = lowStockSuggestions(inventory.filter((i) => i.status !== "spoiled" && i.status !== "discarded"), shopping);
+  const smart = restockSuggestions({ inventory, events, cookings, recipes, shopping, today: today() });
+  const suggestions = [
+    ...smart.map((x) => ({ key: x.normalized_name, name: x.name, quantity: x.quantity as number | null, unit: x.unit as string | null, reason: x.reason })),
+    ...low.filter((i) => !smart.some((x) => x.normalized_name === normalizeName(i.name)))
+      .map((i) => ({ key: normalizeName(i.name), name: i.name, quantity: null, unit: null, reason: `Below your alert level (${formatQuantity(i.quantity, i.unit)} left)` })),
+  ].slice(0, 12);
 
   async function add(name: string, quantity: number | null, unit: string | null) {
     const r = await rpc<ShoppingItem>("add_shopping_item", { p_household: household!.id, p_name: name, p_normalized: normalizeName(name), p_quantity: quantity, p_unit: unit ? normalizeUnit(unit) : null, p_category: guessCategory(name) });
@@ -48,11 +56,27 @@ export default function ShoppingPage() {
         <button className="btn-primary shrink-0" disabled={!text.trim()}>Add</button>
       </form>
 
-      {low.length > 0 && (
-        <div className="card p-3 text-sm">
-          <div className="mb-2 text-xs font-medium text-violet-700">Running low</div>
-          <div className="flex flex-wrap gap-1.5">{low.map((i) => <button key={i.id} className="chip bg-violet-50 py-1 text-violet-700" onClick={() => add(i.name, null, null)}>＋ {i.name}</button>)}</div>
-        </div>
+      {suggestions.length > 0 && (
+        <section className="card overflow-hidden">
+          <div className="flex items-center justify-between bg-gradient-to-r from-violet-50 to-brand-50 px-4 py-3">
+            <div>
+              <h2 className="h2">💡 Suggested for you</h2>
+              <p className="text-xs text-stone-500">Based on what you use often and your regular recipes</p>
+            </div>
+            <button className="btn-ghost text-xs" onClick={async () => { for (const x of suggestions) await add(x.name, x.quantity, x.unit); }}>Add all</button>
+          </div>
+          <ul className="divide-y divide-stone-100">
+            {suggestions.map((x) => (
+              <li key={x.key} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium"><span className="capitalize">{x.name}</span>{x.quantity != null && <span className="font-normal text-stone-500"> · {formatQuantity(x.quantity, x.unit ?? "pcs")}</span>}</div>
+                  <div className="truncate text-xs text-violet-700">{x.reason}</div>
+                </div>
+                <button className="btn bg-brand-600 px-3 py-1.5 text-xs text-white" onClick={() => add(x.name, x.quantity, x.unit)}>＋ Add</button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {open.length === 0 ? <Empty icon="🛒" title="All done!">Missing recipe ingredients can be added from any recipe.</Empty> : (

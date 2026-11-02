@@ -36,6 +36,7 @@ const TABLES: Record<TableKey, string> = {
   cookings: "cookings", ratings: "ratings", overrides: "preference_overrides",
 };
 
+const DEMO = process.env.NEXT_PUBLIC_DEMO === "1";
 const HouseholdCtx = createContext<Ctx | null>(null);
 
 const ERRORS: Record<string, string> = {
@@ -62,6 +63,11 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const reload = useCallback(async () => {
+    if (DEMO) {
+      const d = await import("./demo");
+      return setS((p) => ({ ...p, ready: true, user: d.demoUser as unknown as User, household: d.demoHousehold, members: d.demoMembers, inventory: d.demoInventory,
+        events: d.demoEvents, shopping: d.demoShopping, recipes: d.demoRecipes, cookings: d.demoCookings, ratings: d.demoRatings, overrides: d.demoOverrides }));
+    }
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return setS((p) => ({ ...p, ready: true, user: null }));
     const { data: mem } = await sb.from("household_members").select("household_id, households(*)").eq("user_id", user.id).limit(1).maybeSingle();
@@ -97,6 +103,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     reload();
+    if (DEMO) return;
     const { data } = sb.auth.onAuthStateChange((e: string) => {
       if (e === "SIGNED_IN" || e === "SIGNED_OUT") reload();
     });
@@ -117,7 +124,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 
   // Realtime sync: every change by any household member lands here within ~100 ms.
   useEffect(() => {
-    if (!hid) return;
+    if (!hid || DEMO) return;
     const filter = `household_id=eq.${hid}`;
     let ch = sb.channel(`household:${hid}`);
     (Object.keys(TABLES) as TableKey[]).forEach((k) => {
@@ -147,6 +154,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   }, [sb, hid, reload, upsertLocal]);
 
   const rpc = useCallback(async <T,>(fn: string, args: Record<string, unknown>): Promise<T | null> => {
+    if (DEMO) { toast("Demo mode – changes aren't saved"); return null; }
     const { data, error } = await sb.rpc(fn, args);
     if (error) {
       const key = Object.keys(ERRORS).find((k) => error.message.includes(k));

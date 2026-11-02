@@ -102,6 +102,32 @@ a date. Past-use-by items trigger a "don't eat" warning, and moving an item to t
 * Recipe photos need an optional `UNSPLASH_ACCESS_KEY`. Without it, illustrated placeholders are shown.
 * Push notifications are not in the MVP. Expiry alerts show on the dashboard (see roadmap).
 
+## Smart restock suggestions
+The shopping list has a **"Suggested for you"** card (also shown on the dashboard). It's computed deterministically in
+`src/lib/domain/restock.ts`, with no AI cost:
+* **Products you use regularly.** From the consumption log, the app works out how fast you use each product. If what's
+  left lasts less than 7 days, it suggests about 1½ weeks' worth ("~4 days left at your usual pace").
+* **Ingredients of recipes you cook often** (2× or more) that are missing or low.
+* **Items below a low-stock alert level** you set on the product.
+Anything already on the open shopping list is skipped. Amounts are rounded to shop-friendly sizes.
+
+## Android app
+* **Native APK (Capacitor):** `android/` is a native Android project that opens your deployed app full-screen,
+  with camera and microphone permissions, a splash screen and a green status bar. The server is still needed so the Claude key stays secret.
+  ```bash
+  APP_URL=https://your-deployment.vercel.app npx cap sync android
+  npx cap open android          # Android Studio → Run, or: cd android && ./gradlew assembleDebug
+  ```
+  The GitHub workflow `.github/workflows/smart-pantry-android.yml` builds a debug APK as a downloadable artifact
+  (run it manually and enter the URL, or set the repo variable `SMART_PANTRY_URL`).
+* **Or install as a PWA:** open the site in Chrome on Android and choose ⋮ → *Install app*. There's a manifest, icons and an offline page.
+* Voice dictation uses the Web Speech API, which Chrome supports but the in-app WebView does not. In the APK, use the
+  keyboard's microphone button instead. Photo and receipt scans and the barcode camera work in both.
+
+## Mockups
+Real screens rendered at Android phone size (Pixel 8) from the demo build are in `docs/mockups/`.
+Run the demo yourself without a backend: `NEXT_PUBLIC_DEMO=1 npm run build && NEXT_PUBLIC_DEMO=1 npm start`.
+
 ## 5. Setup
 
 ```bash

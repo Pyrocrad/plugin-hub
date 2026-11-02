@@ -7,6 +7,7 @@ import { LOCATIONS } from "@/lib/domain/types";
 import { groupByUrgency } from "@/lib/domain/expiry";
 import { formatQuantity } from "@/lib/domain/units";
 import { lowStockSuggestions } from "@/lib/domain/shopping";
+import { restockSuggestions } from "@/lib/domain/restock";
 import { latestRatings } from "@/lib/domain/preferences";
 import { ExpiryBadge, RecipeImage, timeAgo, Avatar } from "@/components/ui";
 import { ItemSheet } from "@/components/ItemSheet";
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const urgent = [...g.expired, ...g.today, ...g.within2, ...g.within5];
   const openShop = shopping.filter((s) => s.status === "open");
   const low = lowStockSuggestions(inventory.filter((i) => i.status === "active"), shopping);
+  const restock = restockSuggestions({ inventory, events, cookings, recipes, shopping, today: t });
   const recipeById = new Map(recipes.map((r) => [r.id, r]));
   const suggestions = recipes.filter((r) => r.source === "ai" && r.kind).slice(0, 3);
   const latest = latestRatings(ratings);
@@ -99,7 +101,11 @@ export default function Dashboard() {
           {openShop.length === 0 ? <p className="text-sm text-stone-500">List is empty.</p> : (
             <ul className="flex flex-wrap gap-1.5">{openShop.slice(0, 12).map((s) => <li key={s.id} className="chip bg-stone-100 py-1 text-stone-700">{s.name}</li>)}</ul>
           )}
-          {low.length > 0 && <p className="mt-3 text-xs text-violet-700">Running low: {low.map((i) => i.name).join(", ")}</p>}
+          {(restock.length > 0 || low.length > 0) && (
+            <Link href="/shopping" className="mt-3 block rounded-xl bg-violet-50 p-2.5 text-xs text-violet-800">
+              💡 Running low on things you use often: {[...new Set([...restock.map((r) => r.name), ...low.map((i) => i.name)])].slice(0, 5).join(", ")} →
+            </Link>
+          )}
         </section>
       </div>
 
@@ -135,7 +141,7 @@ export default function Dashboard() {
           <ul className="space-y-1.5 text-sm">
             {recentActivity.map((e) => {
               const m = members.find((x) => x.id === e.user_id);
-              return <li key={e.id} className="flex items-center gap-1.5"><Avatar name={memberName(e.user_id)} color={m?.avatar_color} /><span className="truncate">{e.reason} {nameOf(e.item_id)}{e.delta ? ` (${Number(e.delta) > 0 ? "+" : ""}${Number(e.delta)} ${e.unit})` : ""}</span><span className="ml-auto shrink-0 text-xs text-stone-400">{timeAgo(e.created_at)}</span></li>;
+              return <li key={e.id} className="flex items-center gap-1.5"><Avatar name={m?.display_name ?? "?"} color={m?.avatar_color} /><span className="truncate">{e.reason} {nameOf(e.item_id)}{e.delta ? ` (${Number(e.delta) > 0 ? "+" : ""}${Number(e.delta)} ${e.unit})` : ""}</span><span className="ml-auto shrink-0 text-xs text-stone-400">{timeAgo(e.created_at)}</span></li>;
             })}
           </ul>
         </section>

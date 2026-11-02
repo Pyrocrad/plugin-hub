@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(req: NextRequest) {
+  if (process.env.NEXT_PUBLIC_DEMO === "1") return NextResponse.next();
   let res = NextResponse.next({ request: req });
   const sb = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
@@ -24,4 +25,4 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.svg).*)"] };
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|sw.js|offline.html).*)"] };

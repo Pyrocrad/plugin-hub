@@ -10,7 +10,7 @@ body { @apply bg-stone-50 text-stone-900 antialiased; -webkit-tap-highlight-colo
   .btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-sm; }
   .btn-ghost { @apply btn bg-stone-100 text-stone-700 hover:bg-stone-200; }
   .btn-danger { @apply btn bg-red-50 text-red-700 hover:bg-red-100; }
-  .chip { @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium; }
+  .chip { @apply inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium; }
   .input { @apply w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100; }
   .label { @apply mb-1 block text-xs font-medium text-stone-500; }
   .h1 { @apply text-2xl font-semibold tracking-tight; }
